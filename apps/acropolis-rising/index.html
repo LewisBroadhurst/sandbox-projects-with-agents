@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Acropolis Rising</title>
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet">
+  <style>
+      :root {
+          --sea-deep: #0f2e38;
+          --sea-mid: #173e4a;
+          --marble: #ede4cb;
+          --marble-dark: #d9cca8;
+          --ink: #2b2622;
+          --gold: #c9a227;
+          --gold-bright: #e8c14a;
+          --terracotta: #c1502e;
+          --terracotta-dark: #a13d21;
+          --olive: #6b7b3f;
+          --olive-dark: #4a5d32;
+      }
+
+      * {
+          box-sizing: border-box;
+      }
+
+      html, body {
+          margin: 0;
+          padding: 0;
+          height: 100%;
+          background: var(--sea-deep);
+          font-family: 'Crimson Text', serif;
+          color: var(--ink);
+          overflow: hidden;
+      }
+
+      h1, h2, h3, .display {
+          font-family: 'Cinzel', serif;
+          letter-spacing: .04em;
+      }
+
+      .mono {
+          font-family: 'JetBrains Mono', monospace;
+      }
+
+      #app {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          width: 100vw;
+          background: radial-gradient(ellipse at 30% -10%, #1c4a58 0%, var(--sea-deep) 60%);
+      }
+
+      /* ---------- TOP BAR ---------- */
+      #topbar {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 8px 16px;
+          background: linear-gradient(180deg, #f2e9d0, #e0d3ab);
+          border-bottom: 3px solid var(--gold);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, .4);
+          flex-wrap: wrap;
+          z-index: 5;
+      }
+
+      #titleblock {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-right: 8px;
+      }
+
+      #titleblock .crest {
+          font-size: 22px;
+      }
+
+      #titleblock h1 {
+          font-size: 17px;
+          margin: 0;
+          color: var(--terracotta-dark);
+          text-transform: uppercase;
+      }
+
+      .resbar {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          flex: 1;
+      }
+
+      .res-pill {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          background: var(--marble);
+          border: 1px solid var(--marble-dark);
+          border-radius: 14px;
+          padding: 3px 9px 3px 7px;
+          font-size: 13px;
+          box-shadow: inset 0 1px 2px rgba(255, 255, 255, .6);
+      }
+
+      .res-pill .cap {
+          font-size: 10px;
+          color: #8a7d5c;
+      }
+
+      .res-pill.warn {
+          background: #f3d3c8;
+          border-color: var(--terracotta);
+      }
+
+      #controls {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+      }
+
+      button {
+          font-family: 'Cinzel', serif;
+          cursor: pointer;
+          border: none;
+          border-radius: 6px;
+          background: var(--terracotta);
+          color: #fff;
+          padding: 6px 12px;
+          font-size: 12px;
+          letter-spacing: .03em;
+          box-shadow: 0 2px 0 var(--terracotta-dark);
+      }
+
+      button:hover {
+          filter: brightness(1.08);
+      }
+
+      button:active {
+          transform: translateY(1px);
+          box-shadow: 0 1px 0 var(--terracotta-dark);
+      }
+
+      button.ghost {
+          background: var(--marble);
+          color: var(--ink);
+          box-shadow: 0 2px 0 var(--marble-dark);
+      }
+
+      button.small {
+          padding: 4px 8px;
+          font-size: 11px;
+      }
+
+      button:disabled {
+          opacity: .4;
+          cursor: not-allowed;
+      }
+
+      button.active-speed {
+          background: var(--olive);
+          box-shadow: 0 2px 0 var(--olive-dark);
+      }
+
+      /* ---------- MAIN LAYOUT ---------- */
+      #main {
+          flex: 1;
+          display: flex;
+          overflow: hidden;
+      }
+
+      #palette {
+          width: 198px;
+          background: linear-gradient(180deg, #173e4a, #0f2e38);
+          border-right: 3px solid var(--gold);
+          overflow-y: auto;
+          padding: 10px 8px;
+          flex-shrink: 0;
+      }
+
+      #palette h3 {
+          color: var(--gold-bright);
+          font-size: 12px;
+          margin: 12px 0 6px;
+          text-transform: uppercase;
+          border-bottom: 1px solid rgba(201, 162, 39, .4);
+          padding-bottom: 3px;
+      }
+
+      #palette h3:first-child {
+          margin-top: 0;
+      }
+
+      .build-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-align: left;
+          background: rgba(237, 228, 203, .08);
+          border: 1px solid rgba(201, 162, 39, .35);
+          color: var(--marble);
+          border-radius: 8px;
+          padding: 6px 8px;
+          margin-bottom: 6px;
+          box-shadow: none;
+          font-family: 'Crimson Text', serif;
+      }
+
+      .build-btn .icon {
+          font-size: 19px;
+          width: 22px;
+          text-align: center;
+      }
+
+      .build-btn .label {
+          flex: 1;
+          line-height: 1.15;
+      }
+
+      .build-btn .label b {
+          font-family: 'Cinzel', serif;
+          font-size: 11.5px;
+          display: block;
+          color: var(--gold-bright);
+      }
+
+      .build-btn .label span {
+          font-size: 11px;
+          opacity: .85;
+      }
+
+      .build-btn:hover {
+          background: rgba(201, 162, 39, .22);
+      }
+
+      .build-btn.selected {
+          background: var(--terracotta);
+          border-color: var(--gold-bright);
+      }
+
+      .build-btn:disabled {
+          opacity: .35;
+      }
+
+      #canvasWrap {
+          flex: 1;
+          position: relative;
+          overflow: auto;
+          background: #0a2129;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 18px;
+      }
+
+      #gameCanvas {
+          border: 4px solid var(--gold);
+          border-radius: 4px;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, .6);
+          cursor: crosshair;
+          background: #2E6E82;
+      }
+
+      #sidepanel {
+          width: 270px;
+          background: linear-gradient(180deg, #f2e9d0, #e5d8b3);
+          border-left: 3px solid var(--gold);
+          overflow-y: auto;
+          padding: 12px;
+          flex-shrink: 0;
+      }
+
+      #sidepanel section {
+          margin-bottom: 16px;
+          border: 1px solid var(--marble-dark);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, .35);
+          padding: 10px;
+      }
+
+      #sidepanel h3 {
+          margin: 0 0 8px;
+          font-size: 13px;
+          color: var(--terracotta-dark);
+          text-transform: uppercase;
+      }
+
+      #tileInfo .empty {
+          font-size: 12.5px;
+          color: #6b6355;
+          font-style: italic;
+      }
+
+      #tileInfo .row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12.5px;
+          margin: 2px 0;
+      }
+
+      .stat-line {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12.5px;
+          margin: 3px 0;
+      }
+
+      .happiness-bar-bg {
+          background: #d9cca8;
+          border-radius: 8px;
+          height: 10px;
+          overflow: hidden;
+          margin-top: 4px;
+      }
+
+      .happiness-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--terracotta), var(--olive));
+          transition: width .4s;
+      }
+
+      #milestoneList .m-item {
+          font-size: 12px;
+          padding: 5px 6px;
+          border-radius: 6px;
+          margin-bottom: 4px;
+          background: rgba(255, 255, 255, .5);
+      }
+
+      #milestoneList .m-item.done {
+          background: rgba(107, 123, 63, .35);
+          text-decoration: line-through;
+          opacity: .75;
+      }
+
+      .blessing-btn {
+          width: 100%;
+          text-align: left;
+          margin-bottom: 6px;
+          background: var(--olive);
+          box-shadow: 0 2px 0 var(--olive-dark);
+      }
+
+      .blessing-btn small {
+          display: block;
+          font-family: 'Crimson Text', serif;
+          font-size: 10.5px;
+          opacity: .9;
+      }
+
+      #toastWrap {
+          position: fixed;
+          top: 70px;
+          right: 20px;
+          z-index: 50;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+      }
+
+      .toast {
+          background: var(--gold-bright);
+          color: var(--ink);
+          border: 2px solid var(--gold);
+          border-radius: 8px;
+          padding: 8px 14px;
+          font-family: 'Cinzel', serif;
+          font-size: 12.5px;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+          animation: fadein .3s ease, fadeout .5s ease 3.5s forwards;
+          max-width: 240px;
+      }
+
+      @keyframes fadein {
+          from {
+              opacity: 0;
+              transform: translateX(30px);
+          }
+          to {
+              opacity: 1;
+              transform: translateX(0);
+          }
+      }
+
+      @keyframes fadeout {
+          to {
+              opacity: 0;
+              transform: translateY(-8px);
+          }
+      }
+
+      ::-webkit-scrollbar {
+          width: 9px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+          background: var(--gold);
+          border-radius: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+          background: transparent;
+      }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div id="titleblock"><span class="crest">🏛️</span>
+      <h1>Acropolis Rising</h1></div>
+    <div class="resbar" id="resbar"></div>
+    <div id="controls">
+      <button class="ghost small" id="btnPause">⏸ Pause</button>
+      <button class="ghost small" id="btn1x">1x</button>
+      <button class="ghost small" id="btn2x">2x</button>
+      <button class="ghost small" id="btnSave">💾 Save</button>
+      <button class="ghost small" id="btnLoad">📜 Load</button>
+      <button class="ghost small" id="btnNew">🔄 New City</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="palette"></div>
+
+    <div id="canvasWrap">
+      <canvas height="560" id="gameCanvas" width="800"></canvas>
+    </div>
+
+    <div id="sidepanel">
+      <section id="cityStats">
+        <h3>City of <span id="cityName">Elysia</span></h3>
+        <div class="stat-line"><span>Population</span><span class="mono" id="statPop">0</span></div>
+        <div class="stat-line"><span>Employment</span><span class="mono" id="statEmp">0%</span></div>
+        <div class="stat-line"><span>Happiness</span><span class="mono" id="statHap">0</span></div>
+        <div class="happiness-bar-bg">
+          <div class="happiness-bar-fill" id="happinessBar" style="width:0%"></div>
+        </div>
+      </section>
+
+      <section id="tileInfoSection">
+        <h3>Selected Tile</h3>
+        <div id="tileInfo">
+          <div class="empty">Click a tile to inspect it, or choose a building from the left to place it.</div>
+        </div>
+      </section>
+
+      <section id="blessingsSection">
+        <h3>Divine Blessings</h3>
+        <div id="blessingList"></div>
+      </section>
+
+      <section id="milestonesSection">
+        <h3>Milestones</h3>
+        <div id="milestoneList"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="toastWrap"></div>
+
+<script>
+  (function() {
+    'use strict';
+
+    /* ============================================================
+       DATA
+       ============================================================ */
+    const COLS = 20, ROWS = 14, TILE = 40;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const TERRAIN_COLOR = {
+      grass: '#7f9457', coast: '#8fae74', forest: '#3f5a2b',
+      hill: '#a8804e', mountain: '#8b8378', water: '#2E6E82'
+    };
+
+    const BUILDINGS = {
+      road: {
+        name: 'Path',
+        cat: 'Infrastructure',
+        icon: '▪️',
+        cost: { gold: 2, wood: 1 },
+        allow: ['grass', 'coast'],
+        jobs: 0,
+        desc: 'Boosts adjacent buildings +10% output.'
+      },
+      house: {
+        name: 'House',
+        cat: 'Infrastructure',
+        icon: '🏠',
+        cost: { gold: 12, wood: 15 },
+        allow: ['grass', 'coast'],
+        jobs: 0,
+        capacity: 6,
+        desc: 'Homes citizens. Capacity 6.'
+      },
+      storehouse: {
+        name: 'Storehouse',
+        cat: 'Infrastructure',
+        icon: '📦',
+        cost: { gold: 28, stone: 15 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        storageBonus: 200,
+        desc: '+200 storage for every resource.'
+      },
+
+      lumber: {
+        name: 'Lumber Camp',
+        cat: 'Gathering',
+        icon: '🪓',
+        cost: { gold: 20 },
+        allow: ['forest'],
+        jobs: 2,
+        produces: 'wood',
+        rate: 2.2,
+        desc: 'Harvests wood from the forest.'
+      },
+      quarry: {
+        name: 'Quarry',
+        cat: 'Gathering',
+        icon: '⛏️',
+        cost: { gold: 25, wood: 5 },
+        allow: ['mountain'],
+        jobs: 2,
+        produces: 'stone',
+        rate: 1.8,
+        desc: 'Cuts stone from the mountain.'
+      },
+      mine: {
+        name: 'Copper Mine',
+        cat: 'Gathering',
+        icon: '⚒️',
+        cost: { gold: 32, wood: 5 },
+        allow: ['hill'],
+        jobs: 3,
+        produces: 'copper',
+        rate: 1.5,
+        desc: 'Mines copper ore from the hills.'
+      },
+      dock: {
+        name: 'Fishing Dock',
+        cat: 'Gathering',
+        icon: '🎣',
+        cost: { gold: 20, wood: 5 },
+        allow: ['coast'],
+        jobs: 2,
+        produces: 'fish',
+        rate: 2.4,
+        desc: 'Catches fish along the coast.'
+      },
+      farm: {
+        name: 'Farm',
+        cat: 'Gathering',
+        icon: '🌾',
+        cost: { gold: 16, wood: 5 },
+        allow: ['grass'],
+        jobs: 2,
+        produces: 'grain',
+        rate: 2.6,
+        desc: 'Grows grain in the fields.'
+      },
+
+      forge: {
+        name: 'Bronze Forge',
+        cat: 'Production',
+        icon: '🔥',
+        cost: { gold: 42, stone: 15 },
+        allow: ['grass', 'coast'],
+        jobs: 3,
+        consumes: 'copper',
+        consumeRate: 3,
+        produces: 'bronze',
+        ratio: 0.8,
+        desc: 'Smelts copper into bronze.'
+      },
+      granary: {
+        name: 'Granary',
+        cat: 'Production',
+        icon: '🍞',
+        cost: { gold: 30, wood: 10 },
+        allow: ['grass', 'coast'],
+        jobs: 2,
+        consumes: 'grain',
+        consumeRate: 4,
+        produces: 'bread',
+        ratio: 0.9,
+        desc: 'Bakes grain into bread.'
+      },
+
+      templeZeus: {
+        name: 'Temple of Zeus',
+        cat: 'Temples',
+        icon: '⚡',
+        cost: { gold: 120, stone: 40, bronze: 20 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        god: 'zeus',
+        desc: 'King of the Gods. +5% output citywide, generates Favor.'
+      },
+      templePoseidon: {
+        name: 'Temple of Poseidon',
+        cat: 'Temples',
+        icon: '🔱',
+        cost: { gold: 90, stone: 30 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        god: 'poseidon',
+        boosts: ['fish'],
+        desc: 'God of the Sea. +50% fish within 3 tiles.'
+      },
+      templeDemeter: {
+        name: 'Temple of Demeter',
+        cat: 'Temples',
+        icon: '🌿',
+        cost: { gold: 90, stone: 30 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        god: 'demeter',
+        boosts: ['grain'],
+        desc: 'Goddess of the Harvest. +50% grain within 3 tiles.'
+      },
+      templeHephaestus: {
+        name: 'Temple of Hephaestus',
+        cat: 'Temples',
+        icon: '🔨',
+        cost: { gold: 100, stone: 35, bronze: 10 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        god: 'hephaestus',
+        boosts: ['copper', 'stone', 'bronze'],
+        desc: 'God of the Forge. +50% copper/stone/bronze within 3 tiles.'
+      },
+      templeAthena: {
+        name: 'Temple of Athena',
+        cat: 'Temples',
+        icon: '🦉',
+        cost: { gold: 90, stone: 30 },
+        allow: ['grass', 'coast'],
+        jobs: 1,
+        god: 'athena',
+        boosts: ['happiness'],
+        desc: 'Goddess of Wisdom. Raises happiness within 3 tiles.'
+      }
+    };
+
+    const RES_META = {
+      gold: { icon: '🪙', label: 'Gold' }, favor: { icon: '✨', label: 'Favor' },
+      wood: { icon: '🪵', label: 'Wood' }, stone: { icon: '🪨', label: 'Stone' },
+      copper: { icon: '🔶', label: 'Copper' }, bronze: { icon: '🥉', label: 'Bronze' },
+      fish: { icon: '🐟', label: 'Fish' }, grain: { icon: '🌾', label: 'Grain' }, bread: { icon: '🍞', label: 'Bread' }
+    };
+    const RESOURCE_ORDER = ['gold', 'favor', 'wood', 'stone', 'copper', 'bronze', 'fish', 'grain', 'bread'];
+
+    const BLESSINGS = {
+      poseidon: {
+        name: 'Poseidon\'s Bounty',
+        cost: 50,
+        dur: 60,
+        icon: '🔱',
+        effect: 'fish',
+        mult: 2,
+        desc: 'x2 fish for 60s'
+      },
+      demeter: {
+        name: 'Demeter\'s Harvest',
+        cost: 50,
+        dur: 60,
+        icon: '🌿',
+        effect: 'grain',
+        mult: 2,
+        desc: 'x2 grain for 60s'
+      },
+      hephaestus: {
+        name: 'Hephaestus\' Fire',
+        cost: 60,
+        dur: 60,
+        icon: '🔨',
+        effect: 'industry',
+        mult: 2,
+        desc: 'x2 copper/stone/bronze for 60s'
+      },
+      zeus: {
+        name: 'Zeus\' Bounty',
+        cost: 80,
+        dur: 0,
+        icon: '⚡',
+        effect: 'gold',
+        amount: 250,
+        desc: '+250 gold instantly'
+      },
+      athena: {
+        name: 'Athena\'s Wisdom',
+        cost: 40,
+        dur: 0,
+        icon: '🦉',
+        effect: 'happiness',
+        amount: 20,
+        desc: '+20 happiness instantly'
+      }
+    };
+
+    const MILESTONES = [
+      { id: 'm1', desc: 'Found your first House', reward: { gold: 20 }, check: s => countBuildings(s, 'house') >= 1 },
+      { id: 'm2', desc: 'Open a Copper Mine', reward: { favor: 15 }, check: s => countBuildings(s, 'mine') >= 1 },
+      { id: 'm3', desc: 'Build a Granary', reward: { favor: 20 }, check: s => countBuildings(s, 'granary') >= 1 },
+      { id: 'm4', desc: 'Grow to 25 citizens', reward: { gold: 100 }, check: s => s.population >= 25 },
+      { id: 'm5', desc: 'Raise your first Temple', reward: { favor: 40 }, check: s => countTemples(s) >= 1 },
+      {
+        id: 'm6',
+        desc: 'Forge 100 Bronze (lifetime)',
+        reward: { gold: 80 },
+        check: s => s.totalProduced.bronze >= 100
+      },
+      { id: 'm7', desc: 'Grow to 100 citizens', reward: { favor: 60 }, check: s => s.population >= 100 },
+      {
+        id: 'm8',
+        desc: 'Complete the Pantheon (all 5 Temples)',
+        reward: { gold: 300, favor: 100 },
+        check: s => countTemples(s) >= 5
+      },
+      { id: 'm9', desc: 'Haul 200 Fish (lifetime)', reward: { gold: 60 }, check: s => s.totalProduced.fish >= 200 },
+      { id: 'm10', desc: 'Store 500 Favor', reward: { gold: 200 }, check: s => s.resources.favor >= 500 }
+    ];
+
+    function countBuildings(s, type) {
+      let n = 0;
+      for (const t of s.map) if (t.building === type) n++;
+      return n;
+    }
+
+    function countTemples(s) {
+      let n = 0;
+      for (const t of s.map) if (t.building && t.building.startsWith('temple')) n++;
+      return n;
+    }
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    let state = null;
+    let selectedBuild = null;   // building id currently being placed
+    let selectedTile = null;    // {x,y} for info panel
+    let speed = 1;               // 0 = paused
+    let tickTimer = null;
+
+    function newGameState() {
+      return {
+        map: generateMap(),
+        resources: { gold: 150, favor: 0, wood: 40, stone: 20, copper: 0, bronze: 0, fish: 0, grain: 0, bread: 0 },
+        storageCap: 300,
+        population: 8,
+        happiness: 55,
+        totalProduced: { gold: 0, favor: 0, wood: 0, stone: 0, copper: 0, bronze: 0, fish: 0, grain: 0, bread: 0 },
+        blessingsActive: {}, // id -> expiresAtTick
+        milestonesDone: {},
+        tickCount: 0,
+        cityName: 'Elysia'
+      };
+    }
+
+    function generateMap() {
+      const map = [];
+      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) map.push({
+        x,
+        y,
+        terrain: 'grass',
+        building: null
+      });
+      const at = (x, y) => map[y * COLS + x];
+
+      // carve coastline on the right edge, jagged
+      for (let y = 0; y < ROWS; y++) {
+        const depth = 3 + Math.floor(Math.sin(y * 0.7) * 1.5) + Math.floor(Math.random() * 2);
+        for (let x = COLS - 1; x >= COLS - depth; x--) {
+          if (x >= 0) at(x, y).terrain = 'water';
+        }
+      }
+
+      // random walk clusters
+      function cluster(terrain, seeds, len) {
+        for (let s = 0; s < seeds; s++) {
+          let x = Math.floor(Math.random() * (COLS - 6)) + 1;
+          let y = Math.floor(Math.random() * ROWS);
+          for (let i = 0; i < len; i++) {
+            if (x >= 0 && x < COLS - 4 && y >= 0 && y < ROWS) {
+              const t = at(x, y);
+              if (t.terrain === 'grass') t.terrain = terrain;
+            }
+            x += Math.floor(Math.random() * 3) - 1;
+            y += Math.floor(Math.random() * 3) - 1;
+            x = Math.max(0, Math.min(COLS - 5, x));
+            y = Math.max(0, Math.min(ROWS - 1, y));
+          }
+        }
+      }
+
+      cluster('forest', 4, 14);
+      cluster('hill', 3, 7);
+      cluster('mountain', 2, 7);
+
+      // mark coast: grass tiles adjacent to water
+      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+        const t = at(x, y);
+        if (t.terrain === 'grass') {
+          const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+          for (const [dx, dy] of neighbors) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && at(nx, ny).terrain === 'water') {
+              t.terrain = 'coast';
+              break;
+            }
+          }
+        }
+      }
+      return map;
+    }
+
+    /* ============================================================
+       RENDER: MAP
+       ============================================================ */
+    function tileAt(x, y) {
+      return state.map[y * COLS + x];
+    }
+
+    function drawMap() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const t = tileAt(x, y);
+          ctx.fillStyle = TERRAIN_COLOR[t.terrain];
+          ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+          // subtle texture dots
+          ctx.fillStyle = 'rgba(0,0,0,0.05)';
+          if ((x + y) % 2 === 0) ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+          ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+          ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
+
+          if (t.building) {
+            drawBuilding(x, y, t.building);
+          }
+        }
+      }
+      // temple radius preview while placing a temple
+      if (selectedBuild && BUILDINGS[selectedBuild].boosts) {
+        // no live hover radius (kept simple) - skip
+      }
+      // selection highlight
+      if (selectedTile) {
+        ctx.strokeStyle = '#e8c14a';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(selectedTile.x * TILE + 1.5, selectedTile.y * TILE + 1.5, TILE - 3, TILE - 3);
+        ctx.lineWidth = 1;
+      }
+    }
+
+    function drawBuilding(x, y, bId) {
+      const b = BUILDINGS[bId];
+      const px = x * TILE, py = y * TILE;
+      if (bId === 'road') {
+        ctx.fillStyle = '#5c4a33';
+        ctx.fillRect(px + 6, py + 6, TILE - 12, TILE - 12);
+        return;
+      }
+      ctx.fillStyle = b.god ? '#e8c14a' : '#ede4cb';
+      ctx.strokeStyle = '#2b2622';
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, px + 3, py + 3, TILE - 6, TILE - 6, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '19px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(b.icon, px + TILE / 2, py + TILE / 2 + 1);
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    /* ============================================================
+       PALETTE (build menu)
+       ============================================================ */
+    function renderPalette() {
+      const el = document.getElementById('palette');
+      el.innerHTML = '';
+      const cats = ['Infrastructure', 'Gathering', 'Production', 'Temples'];
+      for (const cat of cats) {
+        const h = document.createElement('h3');
+        h.textContent = cat;
+        el.appendChild(h);
+        for (const [id, b] of Object.entries(BUILDINGS)) {
+          if (b.cat !== cat) continue;
+          const btn = document.createElement('button');
+          btn.className = 'build-btn' + (selectedBuild === id ? ' selected' : '');
+          const costStr = Object.entries(b.cost).map(([k, v]) => `${RES_META[k].icon}${v}`).join(' ');
+          btn.innerHTML = `<span class="icon">${b.icon}</span><span class="label"><b>${b.name}</b><span>${costStr}</span></span>`;
+          btn.title = b.desc;
+          btn.onclick = () => {
+            selectedBuild = (selectedBuild === id) ? null : id;
+            selectedTile = null;
+            renderPalette();
+            renderTileInfo();
+            drawMap();
+          };
+          el.appendChild(btn);
+        }
+      }
+    }
+
+    /* ============================================================
+       HUD / SIDE PANEL
+       ============================================================ */
+    function renderResbar() {
+      const el = document.getElementById('resbar');
+      el.innerHTML = '';
+      for (const key of RESOURCE_ORDER) {
+        const meta = RES_META[key];
+        const val = Math.floor(state.resources[key]);
+        const cap = (key === 'gold' || key === 'favor') ? '' : `<span class="cap">/${state.storageCap}</span>`;
+        const pill = document.createElement('div');
+        pill.className = 'res-pill' + ((key !== 'gold' && key !== 'favor' && val >= state.storageCap * 0.95) ? ' warn' : '');
+        pill.innerHTML = `<span>${meta.icon}</span><span class="mono">${val}</span>${cap}`;
+        pill.title = meta.label;
+        el.appendChild(pill);
+      }
+    }
+
+    function renderCityStats() {
+      document.getElementById('cityName').textContent = state.cityName;
+      document.getElementById('statPop').textContent = Math.floor(state.population);
+      const jobs = totalJobs();
+      const emp = jobs > 0 ? Math.min(100, Math.round((state.population / jobs) * 100)) : 100;
+      document.getElementById('statEmp').textContent = emp + '%';
+      document.getElementById('statHap').textContent = Math.round(state.happiness);
+      document.getElementById('happinessBar').style.width = Math.max(0, Math.min(100, state.happiness)) + '%';
+    }
+
+    function renderTileInfo() {
+      const el = document.getElementById('tileInfo');
+      if (selectedBuild) {
+        const b = BUILDINGS[selectedBuild];
+        el.innerHTML = `<div class="row"><b>${b.icon} ${b.name}</b></div>
+      <div class="row" style="margin-top:4px;">${b.desc}</div>
+      <div class="row" style="margin-top:6px;color:#8a5a2b;">Click a valid tile (${b.allow.join(', ')}) to build.</div>`;
+        return;
+      }
+      if (!selectedTile) {
+        el.innerHTML = '<div class="empty">Click a tile to inspect it, or choose a building from the left to place it.</div>';
+        return;
+      }
+      const t = tileAt(selectedTile.x, selectedTile.y);
+      let html = `<div class="row"><span>Terrain</span><span>${t.terrain}</span></div>`;
+      if (t.building) {
+        const b = BUILDINGS[t.building];
+        html += `<div class="row" style="margin-top:6px;"><b>${b.icon} ${b.name}</b></div>
+      <div class="row">${b.desc}</div>`;
+        html += `<button class="small" style="margin-top:8px;width:100%;" id="btnBulldoze">🏚️ Demolish (refund 50%)</button>`;
+      } else {
+        html += `<div class="empty" style="margin-top:6px;">Empty land.</div>`;
+      }
+      el.innerHTML = html;
+      const bd = document.getElementById('btnBulldoze');
+      if (bd) bd.onclick = () => {
+        bulldoze(selectedTile.x, selectedTile.y);
+      };
+    }
+
+    function renderBlessings() {
+      const el = document.getElementById('blessingList');
+      el.innerHTML = '';
+      for (const [id, bl] of Object.entries(BLESSINGS)) {
+        const active = state.blessingsActive[id];
+        const btn = document.createElement('button');
+        btn.className = 'blessing-btn';
+        const remaining = active ? Math.max(0, active - state.tickCount) : 0;
+        btn.disabled = state.resources.favor < bl.cost || (bl.dur > 0 && active);
+        btn.innerHTML = `${bl.icon} ${bl.name} — ${bl.cost}✨ <small>${bl.desc}${active && bl.dur > 0 ? ` (active ${remaining}s)` : ''}</small>`;
+        btn.onclick = () => castBlessing(id);
+        el.appendChild(btn);
+      }
+    }
+
+    function renderMilestones() {
+      const el = document.getElementById('milestoneList');
+      el.innerHTML = '';
+      for (const m of MILESTONES) {
+        const done = !!state.milestonesDone[m.id];
+        const div = document.createElement('div');
+        div.className = 'm-item' + (done ? ' done' : '');
+        const rewardStr = Object.entries(m.reward).map(([k, v]) => `${RES_META[k].icon}${v}`).join(' ');
+        div.innerHTML = `${done ? '✅' : '◻️'} ${m.desc} <span class="mono" style="float:right;">${rewardStr}</span>`;
+        el.appendChild(div);
+      }
+    }
+
+    function renderAll() {
+      drawMap();
+      renderResbar();
+      renderCityStats();
+      renderTileInfo();
+      renderBlessings();
+      renderMilestones();
+    }
+
+    /* ============================================================
+       TOASTS
+       ============================================================ */
+    function toast(msg) {
+      const wrap = document.getElementById('toastWrap');
+      const d = document.createElement('div');
+      d.className = 'toast';
+      d.textContent = msg;
+      wrap.appendChild(d);
+      setTimeout(() => d.remove(), 4200);
+    }
+
+    /* ============================================================
+       BUILD / BULLDOZE
+       ============================================================ */
+    function canAfford(cost) {
+      for (const [k, v] of Object.entries(cost)) if ((state.resources[k] || 0) < v) return false;
+      return true;
+    }
+
+    function pay(cost) {
+      for (const [k, v] of Object.entries(cost)) state.resources[k] -= v;
+    }
+
+    function tryPlace(x, y) {
+      const b = BUILDINGS[selectedBuild];
+      const t = tileAt(x, y);
+      if (t.building) {
+        toast('That tile is already built on.');
+        return;
+      }
+      if (!b.allow.includes(t.terrain)) {
+        toast(`${b.name} cannot be built on ${t.terrain}.`);
+        return;
+      }
+      if (!canAfford(b.cost)) {
+        toast('Not enough resources.');
+        return;
+      }
+      pay(b.cost);
+      t.building = selectedBuild;
+      if (b.storageBonus) state.storageCap += b.storageBonus;
+      toast(`Built ${b.name}.`);
+      renderAll();
+    }
+
+    function bulldoze(x, y) {
+      const t = tileAt(x, y);
+      if (!t.building) return;
+      const b = BUILDINGS[t.building];
+      for (const [k, v] of Object.entries(b.cost)) state.resources[k] = Math.min(state.storageCap, state.resources[k] + v * 0.5);
+      if (b.storageBonus) state.storageCap = Math.max(300, state.storageCap - b.storageBonus);
+      t.building = null;
+      toast(`Demolished ${b.name}.`);
+      renderAll();
+    }
+
+    function castBlessing(id) {
+      const bl = BLESSINGS[id];
+      if (state.resources.favor < bl.cost) return;
+      if (bl.dur > 0 && state.blessingsActive[id]) return;
+      state.resources.favor -= bl.cost;
+      if (bl.effect === 'gold') {
+        state.resources.gold += bl.amount;
+        toast(`${bl.name}: +${bl.amount} gold!`);
+      } else if (bl.effect === 'happiness') {
+        state.happiness = Math.min(100, state.happiness + bl.amount);
+        toast(`${bl.name}: +${bl.amount} happiness!`);
+      } else {
+        state.blessingsActive[id] = state.tickCount + bl.dur;
+        toast(`${bl.name} invoked!`);
+      }
+      renderAll();
+    }
+
+    /* ============================================================
+       SIMULATION
+       ============================================================ */
+    function totalJobs() {
+      let jobs = 0;
+      for (const t of state.map) if (t.building) jobs += (BUILDINGS[t.building].jobs || 0);
+      return jobs;
+    }
+
+    function hasTempleWithinRadius(x, y, tag, radius) {
+      for (const t of state.map) {
+        if (!t.building) continue;
+        const b = BUILDINGS[t.building];
+        if (b.boosts && b.boosts.includes(tag)) {
+          if (Math.abs(t.x - x) <= radius && Math.abs(t.y - y) <= radius) return true;
+        }
+      }
+      return false;
+    }
+
+    function hasRoadAdjacent(x, y) {
+      const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dy] of neighbors) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          const t = tileAt(nx, ny);
+          if (t.building === 'road') return true;
+        }
+      }
+      return false;
+    }
+
+    function zeusBonus() {
+      return countBuildings(state, 'templeZeus') > 0 ? 1.05 : 1;
+    }
+
+    function blessingMultFor(resourceKey) {
+      let mult = 1;
+      if (state.blessingsActive.poseidon && resourceKey === 'fish') mult *= 2;
+      if (state.blessingsActive.demeter && resourceKey === 'grain') mult *= 2;
+      if (state.blessingsActive.hephaestus && ['copper', 'stone', 'bronze'].includes(resourceKey)) mult *= 2;
+      return mult;
+    }
+
+    function tick() {
+      state.tickCount++;
+      const jobs = totalJobs();
+      const employmentRatio = jobs > 0 ? Math.min(1, state.population / jobs) : 1;
+      const zb = zeusBonus();
+
+      // production / gathering
+      for (const t of state.map) {
+        if (!t.building) continue;
+        const b = BUILDINGS[t.building];
+        const roadBonus = hasRoadAdjacent(t.x, t.y) ? 1.1 : 1;
+
+        if (b.produces && !b.consumes) {
+          const templeBonus = hasTempleWithinRadius(t.x, t.y, b.produces, 3) ? 1.5 : 1;
+          const bMult = blessingMultFor(b.produces);
+          const amount = b.rate * employmentRatio * roadBonus * templeBonus * bMult * zb;
+          addResource(b.produces, amount);
+        }
+        if (b.consumes && b.produces) {
+          const templeBonus = hasTempleWithinRadius(t.x, t.y, b.produces, 3) ? 1.5 : 1;
+          const bMult = blessingMultFor(b.produces);
+          const want = b.consumeRate * employmentRatio * roadBonus;
+          const avail = Math.min(want, state.resources[b.consumes] || 0);
+          state.resources[b.consumes] -= avail;
+          addResource(b.produces, avail * b.ratio * templeBonus * bMult * zb);
+        }
+      }
+
+      // food consumption
+      const foodNeed = state.population * 0.35;
+      let remaining = foodNeed;
+      for (const foodRes of ['bread', 'fish', 'grain']) {
+        const take = Math.min(remaining, state.resources[foodRes]);
+        state.resources[foodRes] -= take;
+        remaining -= take;
+      }
+      const starving = remaining > 0.01;
+
+      // gold tax
+      const happinessFactor = Math.max(0.2, state.happiness / 100);
+      state.resources.gold += state.population * 0.09 * happinessFactor;
+      addResource('gold', 0); // no-op, gold uncapped below anyway
+
+      // favor from temples
+      const temples = countTemples(state);
+      if (temples > 0) addResource('favor', temples * 0.4 * happinessFactor);
+
+      // happiness dynamics
+      let target = 45;
+      target += hasAnyTempleBoost('happiness') ? 15 : 0;
+      target += Math.min(20, temples * 4);
+      target += (employmentRatio > 0.85) ? 8 : (employmentRatio < 0.4 ? -10 : 0);
+      target += starving ? -25 : 5;
+      state.happiness += (target - state.happiness) * 0.05;
+      state.happiness = Math.max(0, Math.min(100, state.happiness));
+
+      // population dynamics
+      const housingCap = countBuildings(state, 'house') * BUILDINGS.house.capacity;
+      if (!starving && state.happiness >= 40 && state.population < housingCap) {
+        if (Math.random() < 0.35 * (state.happiness / 100)) {
+          state.population = Math.min(housingCap, state.population + (1 + Math.floor(Math.random() * 3)));
+        }
+      } else if (starving || state.happiness < 18) {
+        state.population = Math.max(0, state.population - 1);
+      }
+
+      // clamp storable resources to cap (gold/favor uncapped)
+      for (const key of RESOURCE_ORDER) {
+        if (key === 'gold' || key === 'favor') continue;
+        state.resources[key] = Math.min(state.storageCap, state.resources[key]);
+      }
+
+      // clear expired blessings
+      for (const id of Object.keys(state.blessingsActive)) {
+        if (state.blessingsActive[id] <= state.tickCount) delete state.blessingsActive[id];
+      }
+
+      checkMilestones();
+      renderAll();
+    }
+
+    function hasAnyTempleBoost(tag) {
+      for (const t of state.map) {
+        if (t.building && BUILDINGS[t.building].boosts && BUILDINGS[t.building].boosts.includes(tag)) return true;
+      }
+      return false;
+    }
+
+    function addResource(key, amount) {
+      state.resources[key] += amount;
+      state.totalProduced[key] = (state.totalProduced[key] || 0) + amount;
+    }
+
+    function checkMilestones() {
+      for (const m of MILESTONES) {
+        if (state.milestonesDone[m.id]) continue;
+        if (m.check(state)) {
+          state.milestonesDone[m.id] = true;
+          for (const [k, v] of Object.entries(m.reward)) addResource(k, v);
+          toast(`🏆 Milestone: ${m.desc}`);
+        }
+      }
+    }
+
+    /* ============================================================
+       LOOP CONTROL
+       ============================================================ */
+    function startLoop() {
+      if (tickTimer) clearInterval(tickTimer);
+      if (speed === 0) return;
+      tickTimer = setInterval(tick, 1000 / speed);
+    }
+
+    document.getElementById('btnPause').onclick = () => {
+      speed = speed === 0 ? 1 : 0;
+      document.getElementById('btnPause').textContent = speed === 0 ? '▶ Play' : '⏸ Pause';
+      updateSpeedButtons();
+      startLoop();
+    };
+    document.getElementById('btn1x').onclick = () => {
+      speed = 1;
+      document.getElementById('btnPause').textContent = '⏸ Pause';
+      updateSpeedButtons();
+      startLoop();
+    };
+    document.getElementById('btn2x').onclick = () => {
+      speed = 2;
+      document.getElementById('btnPause').textContent = '⏸ Pause';
+      updateSpeedButtons();
+      startLoop();
+    };
+
+    function updateSpeedButtons() {
+      document.getElementById('btn1x').classList.toggle('active-speed', speed === 1);
+      document.getElementById('btn2x').classList.toggle('active-speed', speed === 2);
+    }
+
+    /* ============================================================
+       CANVAS INTERACTION
+       ============================================================ */
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+      const x = Math.floor((e.clientX - rect.left) * scaleX / TILE);
+      const y = Math.floor((e.clientY - rect.top) * scaleY / TILE);
+      if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return;
+      if (selectedBuild) {
+        tryPlace(x, y);
+      } else {
+        selectedTile = { x, y };
+        renderTileInfo();
+        drawMap();
+      }
+    });
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      selectedBuild = null;
+      renderPalette();
+      renderTileInfo();
+      drawMap();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        selectedBuild = null;
+        renderPalette();
+        renderTileInfo();
+        drawMap();
+      }
+    });
+
+    /* ============================================================
+       SAVE / LOAD
+       ============================================================ */
+    async function saveGame() {
+      try {
+        const result = await window.storage.set('acropolis-save', JSON.stringify(state), false);
+        if (result) toast('City saved to the archives.');
+        else toast('Save failed — please try again.');
+      } catch (err) {
+        toast('Save failed — please try again.');
+      }
+    }
+
+    async function loadGame() {
+      try {
+        const result = await window.storage.get('acropolis-save', false);
+        if (result && result.value) {
+          state = JSON.parse(result.value);
+          selectedBuild = null;
+          selectedTile = null;
+          toast('City restored from the archives.');
+          renderAll();
+        } else {
+          toast('No saved city found.');
+        }
+      } catch (err) {
+        toast('No saved city found.');
+      }
+    }
+
+    document.getElementById('btnSave').onclick = saveGame;
+    document.getElementById('btnLoad').onclick = loadGame;
+    document.getElementById('btnNew').onclick = () => {
+      if (!confirm('Start a new city? This will not erase your saved game unless you save over it.')) return;
+      state = newGameState();
+      selectedBuild = null;
+      selectedTile = null;
+      renderAll();
+      toast('A new city rises from the shore.');
+    };
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    async function init() {
+      renderPalette();
+      try {
+        const result = await window.storage.get('acropolis-save', false);
+        if (result && result.value) {
+          state = JSON.parse(result.value);
+          toast('Welcome back to ' + state.cityName + '.');
+        } else {
+          state = newGameState();
+          toast('Found a new city on the Aegean coast.');
+        }
+      } catch (err) {
+        state = newGameState();
+        toast('Found a new city on the Aegean coast.');
+      }
+      updateSpeedButtons();
+      renderAll();
+      startLoop();
+      setInterval(() => {
+        saveGame();
+      }, 30000); // autosave
+    }
+
+    init();
+
+  })();
+</script>
+</body>
+</html>
