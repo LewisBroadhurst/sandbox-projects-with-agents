@@ -1,5 +1,5 @@
 import { COLS, RESOURCE_ORDER, ROWS } from './data';
-import type { GameState, ResourceKey } from './types';
+import type { GameState } from './types';
 
 const SAVE_KEY = 'acropolis-save';
 
@@ -12,36 +12,39 @@ interface SaveEnvelope {
   state: GameState;
 }
 
-function isFiniteNumber(x: unknown): x is number {
-  return typeof x === 'number' && Number.isFinite(x);
-}
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null;
 
-function hasAllResources(r: unknown): r is Record<ResourceKey, number> {
-  if (typeof r !== 'object' || r === null) return false;
-  const rec = r as Record<string, unknown>;
-  return RESOURCE_ORDER.every((k) => isFiniteNumber(rec[k]));
-}
+const isFiniteNumber = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
+
+const isString = (v: unknown): v is string => typeof v === 'string';
+
+const hasAllResources = (v: unknown): boolean =>
+  isObject(v) && RESOURCE_ORDER.every((k) => isFiniteNumber(v[k]));
+
+/** Each persisted field mapped to the predicate its value must satisfy. */
+const STATE_SCHEMA: Record<string, (v: unknown) => boolean> = {
+  map: (v) => Array.isArray(v) && v.length === COLS * ROWS,
+  resources: hasAllResources,
+  totalProduced: hasAllResources,
+  storageCap: isFiniteNumber,
+  population: isFiniteNumber,
+  happiness: isFiniteNumber,
+  tickCount: isFiniteNumber,
+  seed: isFiniteNumber,
+  rngState: isFiniteNumber,
+  cityName: isString,
+  blessingsActive: isObject,
+  milestonesDone: isObject,
+};
 
 /** Structural check guarding against corrupt or stale saves so a bad payload
     starts a fresh game instead of poisoning the simulation with NaN/undefined. */
 function isValidGameState(x: unknown): x is GameState {
-  if (typeof x !== 'object' || x === null) return false;
-  const s = x as Record<string, unknown>;
-  if (!Array.isArray(s.map) || s.map.length !== COLS * ROWS) return false;
-  if (!hasAllResources(s.resources)) return false;
-  if (!hasAllResources(s.totalProduced)) return false;
-  if (!isFiniteNumber(s.storageCap)) return false;
-  if (!isFiniteNumber(s.population)) return false;
-  if (!isFiniteNumber(s.happiness)) return false;
-  if (!isFiniteNumber(s.tickCount)) return false;
-  if (!isFiniteNumber(s.seed)) return false;
-  if (!isFiniteNumber(s.rngState)) return false;
-  if (typeof s.cityName !== 'string') return false;
-  if (typeof s.blessingsActive !== 'object' || s.blessingsActive === null)
-    return false;
-  if (typeof s.milestonesDone !== 'object' || s.milestonesDone === null)
-    return false;
-  return true;
+  return (
+    isObject(x) && Object.entries(STATE_SCHEMA).every(([key, ok]) => ok(x[key]))
+  );
 }
 
 export function loadSavedState(): GameState | null {
