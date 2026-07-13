@@ -1,0 +1,16 @@
+# Normalize line endings: store text as LF in the repo and check it out as LF
+# on every platform, so Windows autocrlf can't reintroduce CRLF and trip
+# Prettier's `endOfLine: "lf"` / `nx format:check`.
+* text=auto eol=lf
+
+# Binary files must never be treated as text or line-ending-converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
