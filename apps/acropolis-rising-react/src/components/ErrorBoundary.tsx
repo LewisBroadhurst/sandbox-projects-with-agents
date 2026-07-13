@@ -5,7 +5,12 @@ import { ErrorBoundary as ReactErrorBoundary, type FallbackProps } from 'react-e
 function GameCrashFallback({ error, resetErrorBoundary }: FallbackProps) {
 	return (
 		<div id="errorFallback" role="alert">
-			<h1>🏛️ The city has crumbled</h1>
+			<h1>
+				<span role="img" aria-label="Temple">
+					🏛️
+				</span>{' '}
+				The city has crumbled
+			</h1>
 			<p>Something went wrong while rendering the game.</p>
 			<pre>{error instanceof Error ? error.message : String(error)}</pre>
 			<button className="ghost" onClick={resetErrorBoundary}>
