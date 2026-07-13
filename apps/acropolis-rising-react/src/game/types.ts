@@ -107,6 +107,10 @@ export interface GameState {
   milestonesDone: Record<string, boolean>;
   tickCount: number;
   cityName: string;
+  /** Seed the map/run was generated from (kept for reference/sharing). */
+  seed: number;
+  /** Current PRNG state; advances as the simulation consumes randomness. */
+  rngState: number;
 }
 
 export interface Point {

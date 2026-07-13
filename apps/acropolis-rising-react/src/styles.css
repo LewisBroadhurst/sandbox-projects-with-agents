@@ -16,6 +16,29 @@
     box-sizing: border-box;
 }
 
+#errorFallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+    color: var(--marble);
+    font-family: 'Crimson Text', serif;
+}
+
+#errorFallback pre {
+    max-width: 90%;
+    overflow: auto;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    color: var(--gold-bright);
+    font-family: 'JetBrains Mono', monospace;
+}
+
 html, body {
     margin: 0;
     padding: 0;

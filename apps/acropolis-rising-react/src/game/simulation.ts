@@ -9,6 +9,7 @@ import {
   countTemples,
 } from './data';
 import { generateMap } from './map';
+import { makeRng, randomSeed } from './rng';
 import type {
   ActionResult,
   BlessingId,
@@ -19,9 +20,11 @@ import type {
   Tile,
 } from './types';
 
-export function newGameState(): GameState {
+export function newGameState(seed: number = randomSeed()): GameState {
+  const rng = makeRng(seed);
+  const map = generateMap(rng);
   return {
-    map: generateMap(),
+    map,
     resources: {
       gold: 150,
       favor: 0,
@@ -51,6 +54,8 @@ export function newGameState(): GameState {
     milestonesDone: {},
     tickCount: 0,
     cityName: 'Elysia',
+    seed,
+    rngState: rng.state,
   };
 }
 
@@ -99,29 +104,45 @@ function addResource(s: GameState, key: ResourceKey, amount: number) {
   s.totalProduced[key] = (s.totalProduced[key] || 0) + amount;
 }
 
-function hasTempleWithinRadius(
-  s: GameState,
+/** A boost-emitting building's position and the tags it boosts. */
+interface BoostSource {
+  x: number;
+  y: number;
+  boosts: BoostTag[];
+}
+
+/** Gathers every boost source once per tick so per-tile lookups don't rescan
+    the whole map (keeps tick roughly linear in the number of tiles). */
+function collectBoostSources(s: GameState): BoostSource[] {
+  const out: BoostSource[] = [];
+  for (const t of s.map) {
+    if (!t.building) continue;
+    const b = BUILDINGS[t.building];
+    if (b.boosts) out.push({ x: t.x, y: t.y, boosts: b.boosts });
+  }
+  return out;
+}
+
+function templeBoostWithin(
+  sources: BoostSource[],
   x: number,
   y: number,
   tag: BoostTag,
   radius: number
 ): boolean {
-  for (const t of s.map) {
-    if (!t.building) continue;
-    const b = BUILDINGS[t.building];
-    if (b.boosts && b.boosts.includes(tag)) {
-      if (Math.abs(t.x - x) <= radius && Math.abs(t.y - y) <= radius)
-        return true;
-    }
+  for (const s of sources) {
+    if (
+      s.boosts.includes(tag) &&
+      Math.abs(s.x - x) <= radius &&
+      Math.abs(s.y - y) <= radius
+    )
+      return true;
   }
   return false;
 }
 
-function hasAnyTempleBoost(s: GameState, tag: BoostTag): boolean {
-  for (const t of s.map) {
-    if (t.building && BUILDINGS[t.building].boosts?.includes(tag)) return true;
-  }
-  return false;
+function anyBoost(sources: BoostSource[], tag: BoostTag): boolean {
+  return sources.some((s) => s.boosts.includes(tag));
 }
 
 function hasRoadAdjacent(s: GameState, x: number, y: number): boolean {
@@ -145,15 +166,20 @@ function zeusBonus(s: GameState): number {
   return countBuildings(s, 'templeZeus') > 0 ? 1.05 : 1;
 }
 
+/** Resources each production-boosting blessing effect applies to. */
+const BLESSING_EFFECT_RESOURCES: Record<string, ResourceKey[]> = {
+  fish: ['fish'],
+  grain: ['grain'],
+  industry: ['copper', 'stone', 'bronze'],
+};
+
 function blessingMultFor(s: GameState, resourceKey: ResourceKey): number {
   let mult = 1;
-  if (s.blessingsActive.poseidon && resourceKey === 'fish') mult *= 2;
-  if (s.blessingsActive.demeter && resourceKey === 'grain') mult *= 2;
-  if (
-    s.blessingsActive.hephaestus &&
-    ['copper', 'stone', 'bronze'].includes(resourceKey)
-  )
-    mult *= 2;
+  for (const id of Object.keys(s.blessingsActive) as BlessingId[]) {
+    const bl = BLESSINGS[id];
+    if (BLESSING_EFFECT_RESOURCES[bl.effect]?.includes(resourceKey))
+      mult *= bl.mult ?? 1;
+  }
   return mult;
 }
 
@@ -173,35 +199,37 @@ function checkMilestones(s: GameState, toasts: string[]) {
 export function tick(prev: GameState): ActionResult {
   const s = cloneState(prev);
   const toasts: string[] = [];
+  const rng = makeRng(s.rngState);
   s.tickCount++;
   const jobs = totalJobs(s);
   const employmentRatio = jobs > 0 ? Math.min(1, s.population / jobs) : 1;
   const zb = zeusBonus(s);
+  const boosts = collectBoostSources(s);
 
   // production / gathering
   for (const t of s.map) {
     if (!t.building) continue;
     const b = BUILDINGS[t.building];
+    if (!b.produces) continue;
     const roadBonus = hasRoadAdjacent(s, t.x, t.y) ? 1.1 : 1;
+    const templeBonus = templeBoostWithin(boosts, t.x, t.y, b.produces, 3)
+      ? 1.5
+      : 1;
+    const bMult = blessingMultFor(s, b.produces);
 
-    if (b.produces && !b.consumes) {
-      const templeBonus = hasTempleWithinRadius(s, t.x, t.y, b.produces, 3)
-        ? 1.5
-        : 1;
-      const bMult = blessingMultFor(s, b.produces);
-      const amount =
-        (b.rate ?? 0) * employmentRatio * roadBonus * templeBonus * bMult * zb;
-      addResource(s, b.produces, amount);
-    }
-    if (b.consumes && b.produces) {
-      const templeBonus = hasTempleWithinRadius(s, t.x, t.y, b.produces, 3)
-        ? 1.5
-        : 1;
-      const bMult = blessingMultFor(s, b.produces);
+    if (b.consumes) {
       const want = (b.consumeRate ?? 0) * employmentRatio * roadBonus;
       const avail = Math.min(want, s.resources[b.consumes] || 0);
       s.resources[b.consumes] -= avail;
-      addResource(s, b.produces, avail * (b.ratio ?? 0) * templeBonus * bMult * zb);
+      addResource(
+        s,
+        b.produces,
+        avail * (b.ratio ?? 0) * templeBonus * bMult * zb
+      );
+    } else {
+      const amount =
+        (b.rate ?? 0) * employmentRatio * roadBonus * templeBonus * bMult * zb;
+      addResource(s, b.produces, amount);
     }
   }
 
@@ -225,7 +253,7 @@ export function tick(prev: GameState): ActionResult {
 
   // happiness dynamics
   let target = 45;
-  target += hasAnyTempleBoost(s, 'happiness') ? 15 : 0;
+  target += anyBoost(boosts, 'happiness') ? 15 : 0;
   target += Math.min(20, temples * 4);
   target += employmentRatio > 0.85 ? 8 : employmentRatio < 0.4 ? -10 : 0;
   target += starving ? -25 : 5;
@@ -235,10 +263,10 @@ export function tick(prev: GameState): ActionResult {
   // population dynamics
   const housingCap = housingCapacity(s);
   if (!starving && s.happiness >= 40 && s.population < housingCap) {
-    if (Math.random() < 0.35 * (s.happiness / 100)) {
+    if (rng.next() < 0.35 * (s.happiness / 100)) {
       s.population = Math.min(
         housingCap,
-        s.population + (1 + Math.floor(Math.random() * 3))
+        s.population + (1 + Math.floor(rng.next() * 3))
       );
     }
   } else if (starving || s.happiness < 18) {
@@ -259,6 +287,7 @@ export function tick(prev: GameState): ActionResult {
   }
 
   checkMilestones(s, toasts);
+  s.rngState = rng.state;
   return { state: s, toasts };
 }
 
