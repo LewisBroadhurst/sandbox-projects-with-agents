@@ -1,0 +1,46 @@
+name: Claude – work on labeled issues
+
+# Runs when an issue is given the `claude` label. Create the issue, then
+# add the `claude` label (or apply it at creation time) to kick this off.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write        # push a fix branch
+  pull-requests: write   # open the PR
+  issues: write          # comment back on the issue
+
+jobs:
+  fix-issue:
+    # Only react to the `claude` label, ignore all others.
+    if: github.event.label.name == 'claude'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Issue #${{ github.event.issue.number }} was labeled for you to work on.
+
+            Title: ${{ github.event.issue.title }}
+
+            ${{ github.event.issue.body }}
+
+            Investigate and implement a fix on a new branch, then open a pull
+            request that closes this issue (use "Closes #${{ github.event.issue.number }}"
+            in the PR body). Before opening the PR, run
+            `pnpm exec nx affected -t lint build test typecheck` and make sure
+            it passes. If the issue is unclear or too risky to auto-fix, comment
+            on the issue with your findings instead of opening a PR.
