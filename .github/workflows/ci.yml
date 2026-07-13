@@ -28,5 +28,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec nx format:check --base=origin/main
-      - run: pnpm exec nx run-many -t build test typecheck
+      # Derive NX_BASE / NX_HEAD so `nx affected` and `format:check` only
+      # look at what changed (handles both push-to-main and pull_request).
+      - uses: nrwl/nx-set-shas@v4
+
+      - run: pnpm exec nx format:check
+      - run: pnpm exec nx affected -t lint build test typecheck
