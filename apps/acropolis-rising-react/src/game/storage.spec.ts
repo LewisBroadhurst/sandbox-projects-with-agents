@@ -13,6 +13,26 @@ describe('storage', () => {
 		expect(loadSavedState()).toEqual(s);
 	});
 
+	// Regression guard for issue #5: on disk the save is a { v, state } envelope,
+	// but loadSavedState must return the *unwrapped* state. If it ever returned the
+	// envelope again, `state.resources` would be undefined and the UI would crash.
+	it('unwraps the envelope: returns the state, not the { v, state } wrapper', () => {
+		const s = newGameState(5);
+		saveState(s);
+
+		const raw = JSON.parse(localStorage.getItem(SAVE_KEY) as string);
+		expect(Object.keys(raw).sort()).toEqual(['state', 'v']);
+
+		const loaded = loadSavedState();
+		expect(loaded).not.toBeNull();
+		// The load result is the state itself, with a real resources object.
+		expect(loaded?.resources).toBeDefined();
+		expect(loaded?.resources.gold).toBe(s.resources.gold);
+		// And it is NOT the envelope.
+		expect((loaded as unknown as Record<string, unknown>).v).toBeUndefined();
+		expect((loaded as unknown as Record<string, unknown>).state).toBeUndefined();
+	});
+
 	it('returns null when there is no save', () => {
 		expect(loadSavedState()).toBeNull();
 	});

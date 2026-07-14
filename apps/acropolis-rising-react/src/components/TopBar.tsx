@@ -24,7 +24,11 @@ export function TopBar({ state, speed, onTogglePause, onSetSpeed, onSave, onLoad
 			<div className="resbar">
 				{RESOURCE_ORDER.map(key => {
 					const meta = RES_META[key];
-					const val = Math.floor(state.resources[key]);
+					// Defensive fallback so a malformed/partial state degrades gracefully
+					// instead of throwing here and blanking the whole screen (issue #5).
+					// loadSavedState is the primary guarantee that `resources` is present;
+					// this guards the render surface as belt-and-suspenders.
+					const val = Math.floor(state.resources?.[key] ?? 0);
 					const uncapped = key === 'gold' || key === 'favor';
 					const nearCap = !uncapped && val >= state.storageCap * 0.95;
 					return (
