@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-export default defineConfig(() => ({
+export default defineConfig(({ command }) => ({
+	// GitHub Pages serves project sites under /<repo-name>/, so production
+	// builds need that as the base path. Dev/preview stay at root ('/').
+	// Override with VITE_BASE_PATH (e.g. '/' for a custom domain).
+	base: command === 'build' ? (process.env.VITE_BASE_PATH ?? '/sandbox-projects-with-agents/') : '/',
 	root: import.meta.dirname,
 	cacheDir: '../../node_modules/.vite/apps/acropolis-rising-react',
 	server: {
