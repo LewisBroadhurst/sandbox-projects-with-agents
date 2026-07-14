@@ -1,21 +1,30 @@
 {
-  "compilerOptions": {
-    "composite": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
-    "importHelpers": true,
-    "isolatedModules": true,
-    "lib": ["es2022"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "noEmitOnError": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "target": "es2022",
-    "customConditions": ["@org/source"]
-  }
+	"compilerOptions": {
+		"composite": true,
+		"declarationMap": true,
+		"emitDeclarationOnly": true,
+		"importHelpers": true,
+		"isolatedModules": true,
+		"lib": ["es2022"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		// Keep this false. With `composite` project references (e.g. tsconfig.spec.json
+		// referencing tsconfig.app.json), `noEmitOnError: true` blocks a project from
+		// emitting ANY of its .d.ts files when a single source file fails to type-check.
+		// Downstream projects then can't resolve the missing declarations, so one real
+		// app-source error cascades into a flood of misleading TS6305 ("output not built")
+		// and TS7006 ("implicitly any") errors in the *.spec files. Type safety is NOT
+		// weakened: `tsc` still reports every type error and still exits non-zero — this
+		// only lets the throwaway typecheck declarations emit so the real error stays
+		// front-and-center. See issue #2.
+		"noEmitOnError": false,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "es2022",
+		"customConditions": ["@org/source"]
+	}
 }
