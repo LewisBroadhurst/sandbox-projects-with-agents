@@ -1,8 +1,11 @@
 # Sandbox Projects with Agents
+
 This repo is basically me just playing with claude code and seeing how far I can go with it.
 
 # Projects
+
 ## Acropolis Rising (HTML and React versions)
+
 Acropolis Rising is a rerun of a game I played heavily growing up called Zeus: Master of Olympus.
 The goal is to recreate it and publish it so it is playable in a web browser, with very little to no code committed by myself.
 
@@ -15,7 +18,7 @@ The goal is to recreate it and publish it so it is playable in a web browser, wi
 The projects are `composite` and the `typecheck` target runs `tsc --build --emitDeclarationOnly`.
 The spec project (`tsconfig.spec.json`) references the app project (`tsconfig.app.json`) and
 consumes its emitted `.d.ts` files. With `noEmitOnError: true`, a single type error in app
-source blocks the app project from emitting *any* declarations, so the spec project can no
+source blocks the app project from emitting _any_ declarations, so the spec project can no
 longer resolve them — one real error then cascades into a flood of misleading `TS6305`
 ("output file has not been built") and `TS7006` ("implicitly `any`") errors pointing at the
 *.spec files instead of the actual bug.
