@@ -38,9 +38,16 @@ jobs:
 
       - run: pnpm exec nx build acropolis-rising-react
 
+      # Stage each app into its own subfolder of the Pages site so the repo
+      # can publish several apps under one base URL. Acropolis Rising ends up
+      # at /sandbox-projects-with-agents/acropolis-rising-react/.
+      - run: |
+          mkdir -p _site/acropolis-rising-react
+          cp -r apps/acropolis-rising-react/dist/. _site/acropolis-rising-react/
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/acropolis-rising-react/dist
+          path: _site
 
   deploy:
     needs: build
