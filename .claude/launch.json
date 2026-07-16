@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["nx", "serve", "@org/acropolis-rising-react"],
       "port": 4200
+    },
+    {
+      "name": "dj-website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["nx", "dev", "@org/dj-website"],
+      "port": 4200
     }
   ]
 }
