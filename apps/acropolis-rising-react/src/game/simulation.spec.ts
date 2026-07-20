@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { COLS } from './data';
 import { bulldoze, canAfford, castBlessing, newGameState, tick, tryPlace } from './simulation';
 import type { GameState } from './types';
 
@@ -134,5 +135,30 @@ describe('tick', () => {
 			b = tick(b).state;
 		}
 		expect(a).toEqual(b);
+	});
+
+	it('does not grow population when houses have no Agora to feed them', () => {
+		let s = blankState(3);
+		s.resources.fish = 300; // plenty of food in the stores
+		// four houses around (5,5) but no Agora to distribute food
+		for (const [x, y] of [[4, 5], [6, 5], [5, 4], [5, 6]] as const) {
+			s.map[y * COLS + x] = { ...s.map[y * COLS + x], building: 'house' };
+		}
+		const start = s.population;
+		for (let i = 0; i < 40; i++) s = tick(s).state;
+		expect(s.population).toBe(start); // no distribution => no newcomers
+	});
+
+	it('grows population once an Agora distributes food to serviced houses', () => {
+		let s = blankState(3);
+		s.resources.fish = 300;
+		s.map[5 * COLS + 5] = { ...s.map[5 * COLS + 5], building: 'agora' };
+		// houses on the Agora forecourt (24 capacity > starting population)
+		for (const [x, y] of [[4, 5], [6, 5], [5, 4], [5, 6]] as const) {
+			s.map[y * COLS + x] = { ...s.map[y * COLS + x], building: 'house' };
+		}
+		const start = s.population;
+		for (let i = 0; i < 80; i++) s = tick(s).state;
+		expect(s.population).toBeGreaterThan(start);
 	});
 });
