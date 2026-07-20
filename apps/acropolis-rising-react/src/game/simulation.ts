@@ -1,4 +1,4 @@
-import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, STOREHOUSE_RANGE, countBuildings, countTemples } from './data';
+import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, STOREHOUSE_PICKUP, STOREHOUSE_RANGE, countBuildings, countTemples } from './data';
 import { generateMap } from './map';
 import { computeCoverage, computeStorageAccess } from './network';
 import { makeRng, randomSeed } from './rng';
@@ -10,7 +10,10 @@ export function newGameState(seed: number = randomSeed()): GameState {
 	return {
 		map,
 		// Generous starting stock so newcomers can experiment while learning the
-		// build/connect/distribute loop before resources get tight.
+		// build/connect/distribute loop before resources get tight. The grain and
+		// fish are a food buffer: without it the starting citizens starve before a
+		// farm and storehouse can be raised, which zeroes employment (and every
+		// producer's output along with it).
 		resources: {
 			gold: 300,
 			favor: 0,
@@ -18,8 +21,8 @@ export function newGameState(seed: number = randomSeed()): GameState {
 			stone: 40,
 			copper: 0,
 			bronze: 0,
-			fish: 0,
-			grain: 0,
+			fish: 80,
+			grain: 120,
 			bread: 0,
 		},
 		storageCap: 300,
@@ -174,7 +177,7 @@ export function tick(prev: GameState): ActionResult {
 	const zb = zeusBonus(s);
 	const boosts = collectBoostSources(s);
 	// Goods only enter the stores if the producer can reach a Storehouse.
-	const storage = computeStorageAccess(s.map, STOREHOUSE_RANGE);
+	const storage = computeStorageAccess(s.map, STOREHOUSE_RANGE, STOREHOUSE_PICKUP);
 
 	// production / gathering
 	for (const t of s.map) {

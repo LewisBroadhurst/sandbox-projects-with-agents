@@ -24,7 +24,7 @@ const STEPS: Step[] = [
   {
     icon: '📦',
     title: '2 · Connect to a Storehouse',
-    body: 'Goods must reach storage to count. Build a Storehouse and lay Paths so every producer is beside the Storehouse or a path leading to one (within 8 tiles). A producer with no route shows an orange dot and produces nothing.',
+    body: 'Goods must reach storage to count. Put a Storehouse within a couple of tiles of your producers, or link them with Paths for longer hauls — carts will carry the goods in. A producer with no route shows an orange dot and produces nothing.',
   },
   {
     icon: '🏪',

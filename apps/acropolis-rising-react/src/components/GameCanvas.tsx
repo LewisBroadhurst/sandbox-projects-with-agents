@@ -101,8 +101,9 @@ function drawBuilding(
   else if (disconnectedProducer) warnDot(ctx, px, py, '#d98a2b');
 }
 
-/** Draws a little market cart (body + two wheels) centred on a pixel point. */
-function drawCart(ctx: CanvasRenderingContext2D, px: number, py: number) {
+/** Draws a little cart (body + two wheels) centred on a pixel point. Food carts
+    (Agora → house) are ochre; goods carts (producer → Storehouse) are wood-brown. */
+function drawCart(ctx: CanvasRenderingContext2D, px: number, py: number, kind: 'food' | 'goods') {
   ctx.fillStyle = '#3a2c1c';
   ctx.beginPath();
   ctx.arc(px - 4, py + 4, 2.2, 0, Math.PI * 2);
@@ -110,10 +111,10 @@ function drawCart(ctx: CanvasRenderingContext2D, px: number, py: number) {
   ctx.beginPath();
   ctx.arc(px + 4, py + 4, 2.2, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#d9a441';
+  ctx.fillStyle = kind === 'goods' ? '#9c6b2f' : '#e0b34a';
   roundRect(ctx, px - 6, py - 5, 12, 8, 2);
   ctx.fill();
-  ctx.strokeStyle = '#7a531f';
+  ctx.strokeStyle = '#5c3d16';
   ctx.lineWidth = 1;
   ctx.stroke();
 }
@@ -196,11 +197,11 @@ export function GameCanvas({
     const draw = (elapsed: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < cartRoutes.length; i++) {
-        const tiles = cartRoutes[i].tiles;
-        if (tiles.length < 2) continue;
+        const route = cartRoutes[i];
+        if (route.tiles.length < 2) continue;
         // stagger carts so they don't march in lockstep
-        const pos = cartPosition(tiles, elapsed * CART_SPEED + i * 0.7);
-        drawCart(ctx, pos.x, pos.y);
+        const pos = cartPosition(route.tiles, elapsed * CART_SPEED + i * 0.7);
+        drawCart(ctx, pos.x, pos.y, route.kind);
       }
     };
 

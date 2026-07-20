@@ -19,6 +19,11 @@ export const AGORA_RANGE = 6;
 /** How many path tiles a producer may be from a Storehouse to deliver goods. */
 export const STOREHOUSE_RANGE = 8;
 
+/** Straight-line tiles a producer may be from a Storehouse for local pickup —
+    lets gatherers on forest/hill/mountain (where paths can't be laid) connect
+    to a nearby Storehouse without a road. */
+export const STOREHOUSE_PICKUP = 2;
+
 export const TERRAIN_COLOR: Record<Terrain, string> = {
   grass: '#7f9457',
   coast: '#8fae74',

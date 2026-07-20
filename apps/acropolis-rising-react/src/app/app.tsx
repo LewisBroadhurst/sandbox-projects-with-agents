@@ -5,8 +5,8 @@ import { SidePanel } from '../components/SidePanel';
 import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
 import { Tutorial } from '../components/Tutorial';
-import { AGORA_RANGE, STOREHOUSE_RANGE } from '../game/data';
-import { computeCartRoutes, computeCoverage, computeStorageAccess } from '../game/network';
+import { AGORA_RANGE, STOREHOUSE_PICKUP, STOREHOUSE_RANGE } from '../game/data';
+import { computeCartRoutes, computeCoverage, computeGoodsRoutes, computeStorageAccess } from '../game/network';
 import { useGame } from '../game/useGame';
 
 export function App() {
@@ -19,11 +19,14 @@ export function App() {
     [game.state.map]
   );
   const storage = useMemo(
-    () => computeStorageAccess(game.state.map, STOREHOUSE_RANGE),
+    () => computeStorageAccess(game.state.map, STOREHOUSE_RANGE, STOREHOUSE_PICKUP),
     [game.state.map]
   );
   const cartRoutes = useMemo(
-    () => computeCartRoutes(game.state.map, AGORA_RANGE),
+    () => [
+      ...computeCartRoutes(game.state.map, AGORA_RANGE),
+      ...computeGoodsRoutes(game.state.map, STOREHOUSE_RANGE, STOREHOUSE_PICKUP),
+    ],
     [game.state.map]
   );
 

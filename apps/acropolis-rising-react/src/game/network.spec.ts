@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDINGS, COLS, ROWS } from './data';
-import { computeCartRoutes, computeCoverage, computeStorageAccess } from './network';
+import { computeCartRoutes, computeCoverage, computeGoodsRoutes, computeStorageAccess } from './network';
 import type { BuildingId, Tile } from './types';
 
 /** A flat grass grid with no buildings. */
@@ -104,6 +104,56 @@ describe('computeStorageAccess', () => {
 		put(m, 9, 1, 'mine'); // reachable only via the out-of-range 9th tile
 		const acc = computeStorageAccess(m, 8);
 		expect(acc.connected.has(1 * COLS + 9)).toBe(false);
+	});
+
+	it('connects a gatherer to a nearby Storehouse within pickup range (no path)', () => {
+		const m = grid();
+		put(m, 5, 5, 'storehouse');
+		put(m, 7, 6, 'lumber'); // 2 tiles away diagonally, no road between
+		const acc = computeStorageAccess(m, 8, 2);
+		expect(acc.connected.has(6 * COLS + 7)).toBe(true);
+	});
+
+	it('does not connect a gatherer beyond pickup range without a path', () => {
+		const m = grid();
+		put(m, 5, 5, 'storehouse');
+		put(m, 8, 5, 'lumber'); // 3 tiles away, outside pickup range 2, no road
+		const acc = computeStorageAccess(m, 8, 2);
+		expect(acc.connected.has(5 * COLS + 8)).toBe(false);
+	});
+});
+
+describe('computeGoodsRoutes', () => {
+	it('has no routes without a Storehouse', () => {
+		const m = grid();
+		put(m, 3, 3, 'farm');
+		expect(computeGoodsRoutes(m)).toEqual([]);
+	});
+
+	it('makes a direct goods route from a producer to a Storehouse in pickup range', () => {
+		const m = grid();
+		put(m, 5, 5, 'storehouse');
+		put(m, 6, 6, 'quarry'); // 1 tile away
+		const routes = computeGoodsRoutes(m, 8, 2);
+		expect(routes).toHaveLength(1);
+		expect(routes[0].kind).toBe('goods');
+		expect(routes[0].tiles).toEqual([
+			{ x: 6, y: 6 },
+			{ x: 5, y: 5 },
+		]);
+	});
+
+	it('hauls goods along the path from a distant producer to its Storehouse', () => {
+		const m = grid();
+		put(m, 0, 0, 'storehouse');
+		for (let x = 1; x <= 3; x++) put(m, x, 0, 'road');
+		put(m, 3, 1, 'mine'); // 3 tiles away → routed along the path, not straight
+		const routes = computeGoodsRoutes(m, 8, 2);
+		expect(routes).toHaveLength(1);
+		const tiles = routes[0].tiles;
+		expect(tiles[0]).toEqual({ x: 3, y: 1 }); // starts at the producer
+		expect(tiles[tiles.length - 1]).toEqual({ x: 0, y: 0 }); // ends at the Storehouse
+		expect(tiles.length).toBeGreaterThan(2);
 	});
 });
 
