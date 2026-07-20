@@ -21,8 +21,8 @@ describe('tryPlace', () => {
 	it('places a building and pays its cost', () => {
 		const { state } = tryPlace(blankState(), 'house', 0, 0);
 		expect(state.map[0].building).toBe('house');
-		expect(state.resources.gold).toBe(138); // 150 - 12
-		expect(state.resources.wood).toBe(25); // 40 - 15
+		expect(state.resources.gold).toBe(288); // 300 - 12
+		expect(state.resources.wood).toBe(65); // 80 - 15
 	});
 
 	it('rejects an already-occupied tile without changing state', () => {
@@ -55,8 +55,8 @@ describe('bulldoze', () => {
 		const placed = tryPlace(blankState(), 'house', 0, 0).state;
 		const { state } = bulldoze(placed, 0, 0);
 		expect(state.map[0].building).toBeNull();
-		expect(state.resources.gold).toBe(144); // 138 + 6
-		expect(state.resources.wood).toBeCloseTo(32.5, 5); // 25 + 7.5
+		expect(state.resources.gold).toBe(294); // 288 + 6
+		expect(state.resources.wood).toBeCloseTo(72.5, 5); // 65 + 7.5
 	});
 
 	it('never lowers storage capacity below the base of 300', () => {
@@ -72,7 +72,7 @@ describe('castBlessing', () => {
 		s.resources.favor = 100;
 		const { state, toasts } = castBlessing(s, 'zeus');
 		expect(state.resources.favor).toBe(20); // 100 - 80
-		expect(state.resources.gold).toBe(400); // 150 + 250
+		expect(state.resources.gold).toBe(550); // 300 + 250
 		expect(toasts[0]).toMatch(/gold/i);
 	});
 
@@ -106,13 +106,22 @@ describe('tick', () => {
 	it('produces resources at the building rate under full employment', () => {
 		const s = blankState();
 		s.map[0] = { ...s.map[0], terrain: 'forest', building: 'lumber' };
+		s.map[1] = { ...s.map[1], building: 'storehouse' }; // adjacent: gives a route to storage
 		const { state } = tick(s);
-		expect(state.resources.wood).toBeCloseTo(42.2, 5); // 40 + 2.2
+		expect(state.resources.wood).toBeCloseTo(82.2, 5); // 80 + 2.2
+	});
+
+	it('does not produce when a producer has no route to a Storehouse', () => {
+		const s = blankState();
+		s.map[0] = { ...s.map[0], terrain: 'forest', building: 'lumber' };
+		const { state } = tick(s); // no storehouse anywhere
+		expect(state.resources.wood).toBe(80); // unchanged — goods cannot be stored
 	});
 
 	it('doubles production for a matching active blessing (reads Blessing.mult)', () => {
 		const base = blankState();
 		base.map[0] = { ...base.map[0], terrain: 'hill', building: 'mine' };
+		base.map[1] = { ...base.map[1], building: 'storehouse' }; // route to storage
 		const plain = tick(base).state.resources.copper;
 		const blessed = tick({ ...base, blessingsActive: { hephaestus: 60 } }).state.resources.copper;
 		expect(plain).toBeCloseTo(1.5, 5);

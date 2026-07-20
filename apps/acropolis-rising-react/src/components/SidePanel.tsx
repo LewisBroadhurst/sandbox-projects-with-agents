@@ -1,11 +1,13 @@
-import { BLESSINGS, BUILDINGS, MILESTONES, RES_META } from '../game/data';
-import type { FoodCoverage } from '../game/network';
+import { BLESSINGS, BUILDINGS, COLS, MILESTONES, RES_META } from '../game/data';
+import type { FoodCoverage, StorageAccess } from '../game/network';
+import { isProducer } from '../game/network';
 import { tileAt, totalJobs } from '../game/simulation';
 import type { BlessingId, BuildingId, GameState, Point, ResourceKey } from '../game/types';
 
 interface SidePanelProps {
 	state: GameState;
 	coverage: FoodCoverage;
+	storage: StorageAccess;
 	selectedBuild: BuildingId | null;
 	selectedTile: Point | null;
 	onDemolish: (x: number, y: number) => void;
@@ -38,10 +40,12 @@ function CityStats({ state }: { state: GameState }) {
 	);
 }
 
-function FoodDistribution({ coverage }: { coverage: FoodCoverage }) {
+function FoodDistribution({ coverage, storage }: { coverage: FoodCoverage; storage: StorageAccess }) {
 	const pct = coverage.totalCapacity > 0 ? Math.round((coverage.servicedCapacity / coverage.totalCapacity) * 100) : 0;
 	let hint: string;
-	if (coverage.houseCount === 0) hint = 'Build houses, then connect them to an Agora with paths.';
+	if (storage.producerCount > 0 && storage.connectedCount < storage.producerCount)
+		hint = 'Some producers have no route to a Storehouse — link them with paths.';
+	else if (coverage.houseCount === 0) hint = 'Build houses, then connect them to an Agora with paths.';
 	else if (coverage.agoraCount === 0) hint = 'No Agora yet — houses cannot receive food.';
 	else if (coverage.servicedCount < coverage.houseCount) hint = 'Extend paths so every house reaches an Agora.';
 	else hint = 'Every house is fed. Citizens can settle in.';
@@ -64,6 +68,12 @@ function FoodDistribution({ coverage }: { coverage: FoodCoverage }) {
 			<div className="coverage-bar-bg">
 				<div className="coverage-bar-fill" style={{ width: `${pct}%` }} />
 			</div>
+			<div className="stat-line" style={{ marginTop: 8 }}>
+				<span>Producers linked</span>
+				<span className="mono">
+					{storage.connectedCount}/{storage.producerCount}
+				</span>
+			</div>
 			<div className="empty" style={{ marginTop: 6 }}>
 				{hint}
 			</div>
@@ -71,7 +81,7 @@ function FoodDistribution({ coverage }: { coverage: FoodCoverage }) {
 	);
 }
 
-function TileInfo({ state, selectedBuild, selectedTile, onDemolish }: Omit<SidePanelProps, 'onBlessing' | 'coverage'>) {
+function TileInfo({ state, storage, coverage, selectedBuild, selectedTile, onDemolish }: Omit<SidePanelProps, 'onBlessing'>) {
 	if (selectedBuild) {
 		const b = BUILDINGS[selectedBuild];
 		return (
@@ -99,6 +109,17 @@ function TileInfo({ state, selectedBuild, selectedTile, onDemolish }: Omit<SideP
 	}
 	const t = tileAt(state, selectedTile.x, selectedTile.y);
 	const b = t.building ? BUILDINGS[t.building] : null;
+	const tileIndex = selectedTile.y * COLS + selectedTile.x;
+	let status: { text: string; color: string } | null = null;
+	if (t.building && isProducer(t.building)) {
+		status = storage.connected.has(tileIndex)
+			? { text: '✔ Linked to a Storehouse — goods are stored.', color: '#4a5d32' }
+			: { text: '⚠ No route to a Storehouse — produces nothing.', color: '#a13d21' };
+	} else if (t.building === 'house') {
+		status = coverage.servicedHouses.has(tileIndex)
+			? { text: '✔ Fed by an Agora — can grow.', color: '#4a5d32' }
+			: { text: '⚠ No Agora reaches this house — it cannot grow.', color: '#a13d21' };
+	}
 	return (
 		<div id="tileInfo">
 			<div className="row">
@@ -113,6 +134,11 @@ function TileInfo({ state, selectedBuild, selectedTile, onDemolish }: Omit<SideP
 						</b>
 					</div>
 					<div className="row">{b.desc}</div>
+					{status && (
+						<div className="row" style={{ marginTop: 6, color: status.color }}>
+							{status.text}
+						</div>
+					)}
 					<button className="small" style={{ marginTop: 8, width: '100%' }} onClick={() => onDemolish(selectedTile.x, selectedTile.y)}>
 						<span role="img" aria-label="Demolish">
 							🏚️
@@ -177,17 +203,24 @@ function Milestones({ state }: { state: GameState }) {
 }
 
 export function SidePanel(props: SidePanelProps) {
-	const { state, coverage, onBlessing } = props;
+	const { state, coverage, storage, onBlessing } = props;
 	return (
 		<div id="sidepanel">
 			<CityStats state={state} />
 			<section id="foodDistSection">
-				<h3>Food Distribution</h3>
-				<FoodDistribution coverage={coverage} />
+				<h3>Distribution</h3>
+				<FoodDistribution coverage={coverage} storage={storage} />
 			</section>
 			<section id="tileInfoSection">
 				<h3>Selected Tile</h3>
-				<TileInfo state={state} selectedBuild={props.selectedBuild} selectedTile={props.selectedTile} onDemolish={props.onDemolish} />
+				<TileInfo
+					state={state}
+					coverage={coverage}
+					storage={storage}
+					selectedBuild={props.selectedBuild}
+					selectedTile={props.selectedTile}
+					onDemolish={props.onDemolish}
+				/>
 			</section>
 			<section id="blessingsSection">
 				<h3>Divine Blessings</h3>

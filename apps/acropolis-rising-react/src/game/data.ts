@@ -16,6 +16,9 @@ export const TILE = 40;
 /** How many path tiles an Agora's traders can walk to reach a house. */
 export const AGORA_RANGE = 6;
 
+/** How many path tiles a producer may be from a Storehouse to deliver goods. */
+export const STOREHOUSE_RANGE = 8;
+
 export const TERRAIN_COLOR: Record<Terrain, string> = {
   grass: '#7f9457',
   coast: '#8fae74',

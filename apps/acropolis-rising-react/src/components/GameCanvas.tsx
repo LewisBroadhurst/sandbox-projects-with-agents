@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BUILDINGS, COLS, ROWS, TERRAIN_COLOR, TILE } from '../game/data';
+import type { CartRoute } from '../game/network';
+import { isProducer } from '../game/network';
 import type { BuildingId, Point, Tile } from '../game/types';
 
 interface GameCanvasProps {
@@ -7,6 +9,12 @@ interface GameCanvasProps {
   selectedTile: Point | null;
   /** Tile indices of houses an Agora reaches with food (from computeCoverage). */
   servicedHouses: Set<number>;
+  /** Tile indices of producers linked to a Storehouse (from computeStorageAccess). */
+  connectedProducers: Set<number>;
+  /** Delivery polylines to animate market carts along (from computeCartRoutes). */
+  cartRoutes: CartRoute[];
+  /** When true the simulation is paused; freeze the cart animation. */
+  paused: boolean;
   onTileClick: (x: number, y: number) => void;
   onCancelBuild: () => void;
 }
@@ -51,13 +59,25 @@ function drawRoad(ctx: CanvasRenderingContext2D, x: number, y: number, map: Tile
   if (isRoad(map, x, y - 1)) ctx.fillRect(cx - half, py, half * 2, TILE / 2 + half);
 }
 
+/** Small coloured dot used to flag a building that is missing a connection. */
+function warnDot(ctx: CanvasRenderingContext2D, px: number, py: number, color: string) {
+  ctx.beginPath();
+  ctx.arc(px + TILE - 8, py + 8, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
 function drawBuilding(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   bId: BuildingId,
   map: Tile[],
-  serviced: boolean
+  unservicedHouse: boolean,
+  disconnectedProducer: boolean
 ) {
   const b = BUILDINGS[bId];
   const px = x * TILE,
@@ -76,27 +96,59 @@ function drawBuilding(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(b.icon, px + TILE / 2, py + TILE / 2 + 1);
-  // flag houses no Agora can reach with food
-  if (bId === 'house' && !serviced) {
-    ctx.beginPath();
-    ctx.arc(px + TILE - 8, py + 8, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#c1502e';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
+  // red: house no Agora feeds; orange: producer with no route to a Storehouse
+  if (unservicedHouse) warnDot(ctx, px, py, '#c1502e');
+  else if (disconnectedProducer) warnDot(ctx, px, py, '#d98a2b');
+}
+
+/** Draws a little market cart (body + two wheels) centred on a pixel point. */
+function drawCart(ctx: CanvasRenderingContext2D, px: number, py: number) {
+  ctx.fillStyle = '#3a2c1c';
+  ctx.beginPath();
+  ctx.arc(px - 4, py + 4, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(px + 4, py + 4, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#d9a441';
+  roundRect(ctx, px - 6, py - 5, 12, 8, 2);
+  ctx.fill();
+  ctx.strokeStyle = '#7a531f';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+const CART_SPEED = 2.2; // path tiles per second
+
+/** Position along a route's polyline at time `t`, walking out and back. */
+function cartPosition(tiles: Point[], t: number): Point {
+  const segCount = tiles.length - 1;
+  const phase = t % (segCount * 2);
+  const s = phase <= segCount ? phase : segCount * 2 - phase; // ping-pong
+  const seg = Math.min(segCount - 1, Math.floor(s));
+  const f = s - seg;
+  const a = tiles[seg],
+    b = tiles[seg + 1];
+  return {
+    x: (a.x + (b.x - a.x) * f) * TILE + TILE / 2,
+    y: (a.y + (b.y - a.y) * f) * TILE + TILE / 2,
+  };
 }
 
 export function GameCanvas({
   map,
   selectedTile,
   servicedHouses,
+  connectedProducers,
+  cartRoutes,
+  paused,
   onTileClick,
   onCancelBuild,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cartCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Static layer: terrain, paths, buildings, connection markers, selection.
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -105,7 +157,8 @@ export function GameCanvas({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
-        const t = map[y * COLS + x];
+        const i = y * COLS + x;
+        const t = map[i];
         ctx.fillStyle = TERRAIN_COLOR[t.terrain];
         ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
         // subtle texture dots
@@ -115,7 +168,9 @@ export function GameCanvas({
         ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
 
         if (t.building) {
-          drawBuilding(ctx, x, y, t.building, map, servicedHouses.has(y * COLS + x));
+          const unserviced = t.building === 'house' && !servicedHouses.has(i);
+          const disconnected = isProducer(t.building) && !connectedProducers.has(i);
+          drawBuilding(ctx, x, y, t.building, map, unserviced, disconnected);
         }
       }
     }
@@ -130,7 +185,39 @@ export function GameCanvas({
       );
       ctx.lineWidth = 1;
     }
-  }, [map, selectedTile, servicedHouses]);
+  }, [map, selectedTile, servicedHouses, connectedProducers]);
+
+  // Animated layer: market carts ferrying food along the delivery routes.
+  useEffect(() => {
+    const canvas = cartCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const draw = (elapsed: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < cartRoutes.length; i++) {
+        const tiles = cartRoutes[i].tiles;
+        if (tiles.length < 2) continue;
+        // stagger carts so they don't march in lockstep
+        const pos = cartPosition(tiles, elapsed * CART_SPEED + i * 0.7);
+        drawCart(ctx, pos.x, pos.y);
+      }
+    };
+
+    if (paused) {
+      draw(0); // one frozen frame while paused
+      return;
+    }
+
+    let raf = 0;
+    const start = performance.now();
+    const loop = (now: number) => {
+      draw((now - start) / 1000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [cartRoutes, paused]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -146,17 +233,25 @@ export function GameCanvas({
 
   return (
     <div id="canvasWrap">
-      <canvas
-        ref={canvasRef}
-        id="gameCanvas"
-        width={COLS * TILE}
-        height={ROWS * TILE}
-        onClick={handleClick}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onCancelBuild();
-        }}
-      />
+      <div id="canvasStack">
+        <canvas
+          ref={canvasRef}
+          id="gameCanvas"
+          width={COLS * TILE}
+          height={ROWS * TILE}
+          onClick={handleClick}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onCancelBuild();
+          }}
+        />
+        <canvas
+          ref={cartCanvasRef}
+          id="cartCanvas"
+          width={COLS * TILE}
+          height={ROWS * TILE}
+        />
+      </div>
     </div>
   );
 }

@@ -24,6 +24,7 @@ export interface Toast {
 
 const AUTOSAVE_MS = 30000;
 const TOAST_MS = 4200;
+const TUTORIAL_KEY = 'acropolis-tutorial-seen';
 
 let nextToastId = 0;
 
@@ -41,6 +42,14 @@ export function useGame() {
   const [selectedBuild, setSelectedBuild] = useState<BuildingId | null>(null);
   const [selectedTile, setSelectedTile] = useState<Point | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Auto-open the tutorial for brand-new players (fresh game, never seen it).
+  const [showTutorial, setShowTutorial] = useState<boolean>(() => {
+    try {
+      return !loadedFromSave.current && localStorage.getItem(TUTORIAL_KEY) !== 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -94,6 +103,16 @@ export function useGame() {
         : 'Found a new city on the Aegean coast.'
     );
   }, [pushToast]);
+
+  const openTutorial = useCallback(() => setShowTutorial(true), []);
+  const closeTutorial = useCallback(() => {
+    setShowTutorial(false);
+    try {
+      localStorage.setItem(TUTORIAL_KEY, 'true');
+    } catch {
+      /* ignore storage errors — the tutorial simply reopens next time */
+    }
+  }, []);
 
   const cancelBuild = useCallback(() => setSelectedBuild(null), []);
 
@@ -171,6 +190,9 @@ export function useGame() {
     selectedBuild,
     selectedTile,
     toasts,
+    showTutorial,
+    openTutorial,
+    closeTutorial,
     setSpeed,
     togglePause,
     selectBuild,
