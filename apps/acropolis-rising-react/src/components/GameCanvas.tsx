@@ -13,10 +13,21 @@ interface GameCanvasProps {
   connectedProducers: Set<number>;
   /** Delivery polylines to animate market carts along (from computeCartRoutes). */
   cartRoutes: CartRoute[];
-  /** When true the simulation is paused; freeze the cart animation. */
+  /** Current population; changes drive citizens walking in (growth) or out (decline). */
+  population: number;
+  /** When true the simulation is paused; freeze the animations. */
   paused: boolean;
   onTileClick: (x: number, y: number) => void;
   onCancelBuild: () => void;
+}
+
+/** A citizen sprite walking between the map edge and a house. */
+interface Walker {
+  from: Point;
+  to: Point;
+  bornAt: number; // performance.now() timestamp the walk starts
+  dur: number;
+  kind: 'arrive' | 'leave';
 }
 
 function roundRect(
@@ -121,6 +132,47 @@ function drawCart(ctx: CanvasRenderingContext2D, px: number, py: number, kind: '
 
 const CART_SPEED = 2.2; // path tiles per second
 
+const WALK_DUR = 2600; // ms for a citizen to cross between edge and house
+const MAX_WALKERS = 16; // concurrent citizen sprites
+const MAX_SPAWN_PER_EVENT = 4; // sprites spawned for a single population change
+const ANIMATE_DELTA_LIMIT = 6; // ignore big jumps (load / new city), not real migration
+
+/** Draws a tiny toga-clad citizen. Arrivals are bright; departures are muted. */
+function drawWalker(ctx: CanvasRenderingContext2D, x: number, y: number, kind: 'arrive' | 'leave') {
+  const tunic = kind === 'leave' ? '#9a8f7a' : '#efe0b6';
+  const trim = kind === 'leave' ? '#6f6656' : '#b5642f';
+  ctx.fillStyle = tunic;
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y + 5);
+  ctx.lineTo(x + 3, y + 5);
+  ctx.lineTo(x + 2, y - 1);
+  ctx.lineTo(x - 2, y - 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = trim;
+  ctx.lineWidth = 0.75;
+  ctx.stroke();
+  ctx.fillStyle = '#e8c9a0';
+  ctx.beginPath();
+  ctx.arc(x, y - 3, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Nearest off-canvas edge point to a pixel position (where a citizen enters/exits). */
+function edgePoint(p: Point): Point {
+  const w = COLS * TILE,
+    h = ROWS * TILE;
+  const dl = p.x,
+    dr = w - p.x,
+    dt = p.y,
+    db = h - p.y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dl) return { x: -8, y: p.y };
+  if (m === dr) return { x: w + 8, y: p.y };
+  if (m === dt) return { x: p.x, y: -8 };
+  return { x: p.x, y: h + 8 };
+}
+
 /** Position along a route's polyline at time `t`, walking out and back. */
 function cartPosition(tiles: Point[], t: number): Point {
   const segCount = tiles.length - 1;
@@ -142,12 +194,57 @@ export function GameCanvas({
   servicedHouses,
   connectedProducers,
   cartRoutes,
+  population,
   paused,
   onTileClick,
   onCancelBuild,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cartCanvasRef = useRef<HTMLCanvasElement>(null);
+  const walkersRef = useRef<Walker[]>([]);
+  const prevPopRef = useRef(population);
+  // Kept in refs so the population effect can read the latest map/coverage
+  // without re-running on every map change.
+  const mapRef = useRef(map);
+  mapRef.current = map;
+  const servicedRef = useRef(servicedHouses);
+  servicedRef.current = servicedHouses;
+
+  // Spawn citizens whenever the population changes: walking toward a fed house
+  // when it grows, or off the nearest map edge when the city shrinks.
+  useEffect(() => {
+    const prev = prevPopRef.current;
+    prevPopRef.current = population;
+    const delta = Math.round(population - prev);
+    if (delta === 0 || Math.abs(delta) > ANIMATE_DELTA_LIMIT) return;
+
+    const houses: { x: number; y: number; serviced: boolean }[] = [];
+    mapRef.current.forEach((t, i) => {
+      if (t.building === 'house') houses.push({ x: t.x, y: t.y, serviced: servicedRef.current.has(i) });
+    });
+    const center: Point = { x: (COLS / 2) * TILE, y: (ROWS / 2) * TILE };
+    const houseCenter = (h: { x: number; y: number }): Point => ({ x: h.x * TILE + TILE / 2, y: h.y * TILE + TILE / 2 });
+
+    const arrive = delta > 0;
+    // Arrivals head for fed houses; departures leave from the least-served ones.
+    const preferred = arrive ? houses.filter(h => h.serviced) : houses.filter(h => !h.serviced);
+    const pool = preferred.length ? preferred : houses;
+
+    const now = performance.now();
+    const spawned: Walker[] = [];
+    for (let k = 0; k < Math.min(Math.abs(delta), MAX_SPAWN_PER_EVENT); k++) {
+      const anchor = pool.length ? houseCenter(pool[Math.floor(Math.random() * pool.length)]) : center;
+      const edge = edgePoint(anchor);
+      spawned.push({
+        from: arrive ? edge : anchor,
+        to: arrive ? anchor : edge,
+        bornAt: now + k * 200, // stagger so they don't overlap exactly
+        dur: WALK_DUR,
+        kind: arrive ? 'arrive' : 'leave',
+      });
+    }
+    walkersRef.current = [...walkersRef.current, ...spawned].slice(-MAX_WALKERS);
+  }, [population]);
 
   // Static layer: terrain, paths, buildings, connection markers, selection.
   useEffect(() => {
@@ -188,14 +285,17 @@ export function GameCanvas({
     }
   }, [map, selectedTile, servicedHouses, connectedProducers]);
 
-  // Animated layer: market carts ferrying food along the delivery routes.
+  // Animated layer: delivery carts along routes + citizens walking in and out.
   useEffect(() => {
     const canvas = cartCanvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    const draw = (elapsed: number) => {
+    const startMs = performance.now();
+    const drawFrame = (nowMs: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // carts
+      const elapsed = (nowMs - startMs) / 1000;
       for (let i = 0; i < cartRoutes.length; i++) {
         const route = cartRoutes[i];
         if (route.tiles.length < 2) continue;
@@ -203,17 +303,26 @@ export function GameCanvas({
         const pos = cartPosition(route.tiles, elapsed * CART_SPEED + i * 0.7);
         drawCart(ctx, pos.x, pos.y, route.kind);
       }
+      // citizens (dropping any that have completed their walk)
+      const alive: Walker[] = [];
+      for (const w of walkersRef.current) {
+        const raw = (nowMs - w.bornAt) / w.dur;
+        if (raw >= 1) continue;
+        const t = Math.max(0, raw);
+        drawWalker(ctx, w.from.x + (w.to.x - w.from.x) * t, w.from.y + (w.to.y - w.from.y) * t, w.kind);
+        alive.push(w);
+      }
+      walkersRef.current = alive;
     };
 
     if (paused) {
-      draw(0); // one frozen frame while paused
+      drawFrame(performance.now()); // one frozen frame while paused
       return;
     }
 
     let raf = 0;
-    const start = performance.now();
     const loop = (now: number) => {
-      draw((now - start) / 1000);
+      drawFrame(now);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

@@ -53,6 +53,7 @@ export function App() {
           servicedHouses={coverage.servicedHouses}
           connectedProducers={storage.connected}
           cartRoutes={cartRoutes}
+          population={game.state.population}
           paused={game.speed === 0}
           onTileClick={game.handleTileClick}
           onCancelBuild={game.cancelBuild}
