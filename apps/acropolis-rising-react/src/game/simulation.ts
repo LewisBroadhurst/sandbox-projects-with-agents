@@ -1,6 +1,6 @@
-import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, countBuildings, countTemples } from './data';
+import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, STOREHOUSE_RANGE, countBuildings, countTemples } from './data';
 import { generateMap } from './map';
-import { computeCoverage } from './network';
+import { computeCoverage, computeStorageAccess } from './network';
 import { makeRng, randomSeed } from './rng';
 import type { ActionResult, BlessingId, BoostTag, BuildingId, GameState, ResourceKey, Tile } from './types';
 
@@ -9,11 +9,13 @@ export function newGameState(seed: number = randomSeed()): GameState {
 	const map = generateMap(rng);
 	return {
 		map,
+		// Generous starting stock so newcomers can experiment while learning the
+		// build/connect/distribute loop before resources get tight.
 		resources: {
-			gold: 150,
+			gold: 300,
 			favor: 0,
-			wood: 40,
-			stone: 20,
+			wood: 80,
+			stone: 40,
 			copper: 0,
 			bronze: 0,
 			fish: 0,
@@ -171,12 +173,15 @@ export function tick(prev: GameState): ActionResult {
 	const employmentRatio = jobs > 0 ? Math.min(1, s.population / jobs) : 1;
 	const zb = zeusBonus(s);
 	const boosts = collectBoostSources(s);
+	// Goods only enter the stores if the producer can reach a Storehouse.
+	const storage = computeStorageAccess(s.map, STOREHOUSE_RANGE);
 
 	// production / gathering
 	for (const t of s.map) {
 		if (!t.building) continue;
 		const b = BUILDINGS[t.building];
 		if (!b.produces) continue;
+		if (!storage.connected.has(t.y * COLS + t.x)) continue; // no route to storage
 		const roadBonus = hasRoadAdjacent(s, t.x, t.y) ? 1.1 : 1;
 		const templeBonus = templeBoostWithin(boosts, t.x, t.y, b.produces, 3) ? 1.5 : 1;
 		const bMult = blessingMultFor(s, b.produces);

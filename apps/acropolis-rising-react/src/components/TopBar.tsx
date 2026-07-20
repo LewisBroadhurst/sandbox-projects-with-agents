@@ -10,9 +10,10 @@ interface TopBarProps {
 	onSave: () => void;
 	onLoad: () => void;
 	onNew: () => void;
+	onHelp: () => void;
 }
 
-export function TopBar({ state, speed, onTogglePause, onSetSpeed, onSave, onLoad, onNew }: TopBarProps) {
+export function TopBar({ state, speed, onTogglePause, onSetSpeed, onSave, onLoad, onNew, onHelp }: TopBarProps) {
 	return (
 		<div id="topbar">
 			<div id="titleblock">
@@ -67,6 +68,12 @@ export function TopBar({ state, speed, onTogglePause, onSetSpeed, onSave, onLoad
 						🔄
 					</span>{' '}
 					New City
+				</button>
+				<button className="ghost small" onClick={onHelp}>
+					<span role="img" aria-label="How to play">
+						❔
+					</span>{' '}
+					How to Play
 				</button>
 			</div>
 		</div>

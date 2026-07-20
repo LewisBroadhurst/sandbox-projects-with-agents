@@ -4,17 +4,26 @@ import { Palette } from '../components/Palette';
 import { SidePanel } from '../components/SidePanel';
 import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
-import { AGORA_RANGE } from '../game/data';
-import { computeCoverage } from '../game/network';
+import { Tutorial } from '../components/Tutorial';
+import { AGORA_RANGE, STOREHOUSE_RANGE } from '../game/data';
+import { computeCartRoutes, computeCoverage, computeStorageAccess } from '../game/network';
 import { useGame } from '../game/useGame';
 
 export function App() {
   const game = useGame();
 
-  // Food coverage is structural (map-only), so recompute it just when the map
+  // Network state is structural (map-only), so recompute it just when the map
   // changes rather than every tick.
   const coverage = useMemo(
     () => computeCoverage(game.state.map, AGORA_RANGE),
+    [game.state.map]
+  );
+  const storage = useMemo(
+    () => computeStorageAccess(game.state.map, STOREHOUSE_RANGE),
+    [game.state.map]
+  );
+  const cartRoutes = useMemo(
+    () => computeCartRoutes(game.state.map, AGORA_RANGE),
     [game.state.map]
   );
 
@@ -28,6 +37,7 @@ export function App() {
         onSave={game.saveGame}
         onLoad={game.loadGame}
         onNew={game.newCity}
+        onHelp={game.openTutorial}
       />
       <div id="main">
         <Palette
@@ -38,12 +48,16 @@ export function App() {
           map={game.state.map}
           selectedTile={game.selectedTile}
           servicedHouses={coverage.servicedHouses}
+          connectedProducers={storage.connected}
+          cartRoutes={cartRoutes}
+          paused={game.speed === 0}
           onTileClick={game.handleTileClick}
           onCancelBuild={game.cancelBuild}
         />
         <SidePanel
           state={game.state}
           coverage={coverage}
+          storage={storage}
           selectedBuild={game.selectedBuild}
           selectedTile={game.selectedTile}
           onDemolish={game.demolish}
@@ -51,6 +65,7 @@ export function App() {
         />
       </div>
       <Toasts toasts={game.toasts} />
+      {game.showTutorial && <Tutorial onClose={game.closeTutorial} />}
     </div>
   );
 }
