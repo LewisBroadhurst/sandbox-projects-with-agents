@@ -13,6 +13,9 @@ export const COLS = 20;
 export const ROWS = 14;
 export const TILE = 40;
 
+/** How many path tiles an Agora's traders can walk to reach a house. */
+export const AGORA_RANGE = 6;
+
 export const TERRAIN_COLOR: Record<Terrain, string> = {
   grass: '#7f9457',
   coast: '#8fae74',
@@ -30,7 +33,7 @@ export const BUILDINGS: Record<BuildingId, Building> = {
     cost: { gold: 2, wood: 1 },
     allow: ['grass', 'coast'],
     jobs: 0,
-    desc: 'Boosts adjacent buildings +10% output.',
+    desc: 'Connects buildings. +10% output to adjacent producers and carries Agora food to houses.',
   },
   house: {
     name: 'House',
@@ -40,7 +43,16 @@ export const BUILDINGS: Record<BuildingId, Building> = {
     allow: ['grass', 'coast'],
     jobs: 0,
     capacity: 6,
-    desc: 'Homes citizens. Capacity 6.',
+    desc: 'Homes citizens (capacity 6). Only grows when an Agora delivers food along a path.',
+  },
+  agora: {
+    name: 'Agora',
+    cat: 'Infrastructure',
+    icon: '🏪',
+    cost: { gold: 45, wood: 15, stone: 10 },
+    allow: ['grass', 'coast'],
+    jobs: 2,
+    desc: 'Market whose traders walk paths to deliver food to houses within 6 path tiles.',
   },
   storehouse: {
     name: 'Storehouse',
@@ -343,5 +355,17 @@ export const MILESTONES: Milestone[] = [
     desc: 'Store 500 Favor',
     reward: { gold: 200 },
     check: (s) => s.resources.favor >= 500,
+  },
+  {
+    id: 'm11',
+    desc: 'Open your first Agora',
+    reward: { gold: 40 },
+    check: (s) => countBuildings(s, 'agora') >= 1,
+  },
+  {
+    id: 'm12',
+    desc: 'Lay 12 Paths to link your city',
+    reward: { favor: 25 },
+    check: (s) => countBuildings(s, 'road') >= 12,
   },
 ];

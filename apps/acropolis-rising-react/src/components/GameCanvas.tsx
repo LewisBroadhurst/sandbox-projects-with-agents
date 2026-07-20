@@ -5,6 +5,8 @@ import type { BuildingId, Point, Tile } from '../game/types';
 interface GameCanvasProps {
   map: Tile[];
   selectedTile: Point | null;
+  /** Tile indices of houses an Agora reaches with food (from computeCoverage). */
+  servicedHouses: Set<number>;
   onTileClick: (x: number, y: number) => void;
   onCancelBuild: () => void;
 }
@@ -26,18 +28,42 @@ function roundRect(
   ctx.closePath();
 }
 
+function isRoad(map: Tile[], x: number, y: number): boolean {
+  if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+  return map[y * COLS + x].building === 'road';
+}
+
+/** Draws a path tile as a node with arms reaching toward adjacent paths so the
+    network reads as one connected road rather than scattered squares. */
+function drawRoad(ctx: CanvasRenderingContext2D, x: number, y: number, map: Tile[]) {
+  const px = x * TILE,
+    py = y * TILE;
+  const cx = px + TILE / 2,
+    cy = py + TILE / 2;
+  const half = 7; // half-width of the path ribbon
+  ctx.fillStyle = '#6b5942';
+  // central node
+  ctx.fillRect(cx - half, cy - half, half * 2, half * 2);
+  // arms toward connected neighbours
+  if (isRoad(map, x + 1, y)) ctx.fillRect(cx - half, cy - half, TILE / 2 + half, half * 2);
+  if (isRoad(map, x - 1, y)) ctx.fillRect(px, cy - half, TILE / 2 + half, half * 2);
+  if (isRoad(map, x, y + 1)) ctx.fillRect(cx - half, cy - half, half * 2, TILE / 2 + half);
+  if (isRoad(map, x, y - 1)) ctx.fillRect(cx - half, py, half * 2, TILE / 2 + half);
+}
+
 function drawBuilding(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  bId: BuildingId
+  bId: BuildingId,
+  map: Tile[],
+  serviced: boolean
 ) {
   const b = BUILDINGS[bId];
   const px = x * TILE,
     py = y * TILE;
   if (bId === 'road') {
-    ctx.fillStyle = '#5c4a33';
-    ctx.fillRect(px + 6, py + 6, TILE - 12, TILE - 12);
+    drawRoad(ctx, x, y, map);
     return;
   }
   ctx.fillStyle = b.god ? '#e8c14a' : '#ede4cb';
@@ -50,11 +76,22 @@ function drawBuilding(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(b.icon, px + TILE / 2, py + TILE / 2 + 1);
+  // flag houses no Agora can reach with food
+  if (bId === 'house' && !serviced) {
+    ctx.beginPath();
+    ctx.arc(px + TILE - 8, py + 8, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#c1502e';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 }
 
 export function GameCanvas({
   map,
   selectedTile,
+  servicedHouses,
   onTileClick,
   onCancelBuild,
 }: GameCanvasProps) {
@@ -78,7 +115,7 @@ export function GameCanvas({
         ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
 
         if (t.building) {
-          drawBuilding(ctx, x, y, t.building);
+          drawBuilding(ctx, x, y, t.building, map, servicedHouses.has(y * COLS + x));
         }
       }
     }
@@ -93,7 +130,7 @@ export function GameCanvas({
       );
       ctx.lineWidth = 1;
     }
-  }, [map, selectedTile]);
+  }, [map, selectedTile, servicedHouses]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

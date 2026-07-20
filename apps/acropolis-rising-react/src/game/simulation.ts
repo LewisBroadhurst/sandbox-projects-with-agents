@@ -1,5 +1,6 @@
-import { BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, countBuildings, countTemples } from './data';
+import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, countBuildings, countTemples } from './data';
 import { generateMap } from './map';
+import { computeCoverage } from './network';
 import { makeRng, randomSeed } from './rng';
 import type { ActionResult, BlessingId, BoostTag, BuildingId, GameState, ResourceKey, Tile } from './types';
 
@@ -191,6 +192,14 @@ export function tick(prev: GameState): ActionResult {
 		}
 	}
 
+	// food distribution: Agoras carry food along paths to houses. A house only
+	// grows if its market can reach it AND there is food in the stores to hand
+	// out, so distribution gates growth just like production feeds the stores.
+	const foodStock = s.resources.bread + s.resources.fish + s.resources.grain;
+	const coverage = computeCoverage(s.map, AGORA_RANGE);
+	const fedHousingCap = foodStock > 0.01 ? coverage.servicedCapacity : 0;
+	const coverageRatio = coverage.totalCapacity > 0 ? coverage.servicedCapacity / coverage.totalCapacity : 1;
+
 	// food consumption
 	const foodNeed = s.population * 0.35;
 	let remaining = foodNeed;
@@ -215,14 +224,15 @@ export function tick(prev: GameState): ActionResult {
 	target += Math.min(20, temples * 4);
 	target += employmentRatio > 0.85 ? 8 : employmentRatio < 0.4 ? -10 : 0;
 	target += starving ? -25 : 5;
+	// unserved houses are a visible grievance; well-fed cities are content.
+	if (coverage.houseCount > 0) target += coverageRatio >= 0.9 ? 6 : coverageRatio < 0.5 ? -8 : 0;
 	s.happiness += (target - s.happiness) * 0.05;
 	s.happiness = Math.max(0, Math.min(100, s.happiness));
 
-	// population dynamics
-	const housingCap = housingCapacity(s);
-	if (!starving && s.happiness >= 40 && s.population < housingCap) {
+	// population dynamics — newcomers can only settle houses an Agora feeds.
+	if (!starving && s.happiness >= 40 && s.population < fedHousingCap) {
 		if (rng.next() < 0.35 * (s.happiness / 100)) {
-			s.population = Math.min(housingCap, s.population + (1 + Math.floor(rng.next() * 3)));
+			s.population = Math.min(fedHousingCap, s.population + (1 + Math.floor(rng.next() * 3)));
 		}
 	} else if (starving || s.happiness < 18) {
 		s.population = Math.max(0, s.population - 1);

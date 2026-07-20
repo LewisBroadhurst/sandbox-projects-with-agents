@@ -1,9 +1,11 @@
 import { BLESSINGS, BUILDINGS, MILESTONES, RES_META } from '../game/data';
+import type { FoodCoverage } from '../game/network';
 import { tileAt, totalJobs } from '../game/simulation';
 import type { BlessingId, BuildingId, GameState, Point, ResourceKey } from '../game/types';
 
 interface SidePanelProps {
 	state: GameState;
+	coverage: FoodCoverage;
 	selectedBuild: BuildingId | null;
 	selectedTile: Point | null;
 	onDemolish: (x: number, y: number) => void;
@@ -36,7 +38,40 @@ function CityStats({ state }: { state: GameState }) {
 	);
 }
 
-function TileInfo({ state, selectedBuild, selectedTile, onDemolish }: Omit<SidePanelProps, 'onBlessing'>) {
+function FoodDistribution({ coverage }: { coverage: FoodCoverage }) {
+	const pct = coverage.totalCapacity > 0 ? Math.round((coverage.servicedCapacity / coverage.totalCapacity) * 100) : 0;
+	let hint: string;
+	if (coverage.houseCount === 0) hint = 'Build houses, then connect them to an Agora with paths.';
+	else if (coverage.agoraCount === 0) hint = 'No Agora yet — houses cannot receive food.';
+	else if (coverage.servicedCount < coverage.houseCount) hint = 'Extend paths so every house reaches an Agora.';
+	else hint = 'Every house is fed. Citizens can settle in.';
+	return (
+		<div id="foodDist">
+			<div className="stat-line">
+				<span>Agoras</span>
+				<span className="mono">{coverage.agoraCount}</span>
+			</div>
+			<div className="stat-line">
+				<span>Houses served</span>
+				<span className="mono">
+					{coverage.servicedCount}/{coverage.houseCount}
+				</span>
+			</div>
+			<div className="stat-line">
+				<span>Food coverage</span>
+				<span className="mono">{pct}%</span>
+			</div>
+			<div className="coverage-bar-bg">
+				<div className="coverage-bar-fill" style={{ width: `${pct}%` }} />
+			</div>
+			<div className="empty" style={{ marginTop: 6 }}>
+				{hint}
+			</div>
+		</div>
+	);
+}
+
+function TileInfo({ state, selectedBuild, selectedTile, onDemolish }: Omit<SidePanelProps, 'onBlessing' | 'coverage'>) {
 	if (selectedBuild) {
 		const b = BUILDINGS[selectedBuild];
 		return (
@@ -142,10 +177,14 @@ function Milestones({ state }: { state: GameState }) {
 }
 
 export function SidePanel(props: SidePanelProps) {
-	const { state, onBlessing } = props;
+	const { state, coverage, onBlessing } = props;
 	return (
 		<div id="sidepanel">
 			<CityStats state={state} />
+			<section id="foodDistSection">
+				<h3>Food Distribution</h3>
+				<FoodDistribution coverage={coverage} />
+			</section>
 			<section id="tileInfoSection">
 				<h3>Selected Tile</h3>
 				<TileInfo state={state} selectedBuild={props.selectedBuild} selectedTile={props.selectedTile} onDemolish={props.onDemolish} />

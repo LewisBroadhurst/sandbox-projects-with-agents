@@ -7,6 +7,7 @@ export type BuildingCategory = 'Infrastructure' | 'Gathering' | 'Production' | '
 export type BuildingId =
 	| 'road'
 	| 'house'
+	| 'agora'
 	| 'storehouse'
 	| 'lumber'
 	| 'quarry'
