@@ -136,6 +136,23 @@ describe('tick', () => {
 		expect(toasts.some(t => /Milestone/.test(t))).toBe(true);
 	});
 
+	it('starts with a food buffer so the initial population does not instantly starve', () => {
+		const s = newGameState(5);
+		expect(s.resources.grain + s.resources.fish + s.resources.bread).toBeGreaterThan(0);
+	});
+
+	// Regression: a connected producer stopped yielding goods because the
+	// unfed starting population collapsed to 0, which zeroed employment.
+	it('keeps a connected producer working because the food buffer sustains the workers', () => {
+		let s = blankState(5);
+		s.map[0] = { ...s.map[0], terrain: 'forest', building: 'lumber' };
+		s.map[1] = { ...s.map[1], building: 'storehouse' }; // adjacent → connected
+		const startWood = s.resources.wood;
+		for (let i = 0; i < 15; i++) s = tick(s).state;
+		expect(s.population).toBeGreaterThan(0); // did not starve to death
+		expect(s.resources.wood).toBeGreaterThan(startWood); // so wood was collected
+	});
+
 	it('is fully deterministic for a given seed', () => {
 		let a = newGameState(777);
 		let b = newGameState(777);

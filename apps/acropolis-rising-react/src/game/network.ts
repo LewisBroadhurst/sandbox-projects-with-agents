@@ -10,6 +10,7 @@ const DIRS = [
 
 const inBounds = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
 const idx = (x: number, y: number) => y * COLS + x;
+const toPoint = (k: number): Point => ({ x: k % COLS, y: (k - (k % COLS)) / COLS });
 
 /** Result of flooding the path network outward from a set of "source"
     buildings (Agoras, Storehouses). Each visited path tile records its walking
@@ -154,53 +155,84 @@ export interface StorageAccess {
 }
 
 /**
- * A producer can store its goods if it sits beside a Storehouse or beside a
- * path tile within range of one. Without a route to storage it produces
- * nothing — goods have nowhere to go.
+ * A producer can store its goods if a Storehouse is within `pickupRadius`
+ * straight-line tiles (local pickup — the common case for gatherers on terrain
+ * where paths can't be laid) or it sits beside a path within `range` of one.
+ * Without a route to storage it produces nothing — goods have nowhere to go.
  */
-export function computeStorageAccess(map: Tile[], range = 8): StorageAccess {
+export function computeStorageAccess(map: Tile[], range = 8, pickupRadius = 2): StorageAccess {
 	const flood = floodPaths(map, b => b === 'storehouse', range);
+	const storehouses: Tile[] = [];
 	const connected = new Set<number>();
-
 	let producerCount = 0;
-	let storehouseCount = 0;
+
+	for (const t of map) if (t.building === 'storehouse') storehouses.push(t);
 
 	for (const t of map) {
-		if (t.building === 'storehouse') storehouseCount++;
 		if (!t.building || !isProducer(t.building)) continue;
 		producerCount++;
 		const here = idx(t.x, t.y);
-		for (const [dx, dy] of DIRS) {
-			const nx = t.x + dx,
-				ny = t.y + dy;
-			if (!inBounds(nx, ny)) continue;
-			const n = map[idx(nx, ny)];
-			if (n.building === 'storehouse' || (n.building === 'road' && flood.dist[idx(nx, ny)] < Infinity)) {
-				connected.add(here);
-				break;
+
+		// local pickup: any Storehouse within the straight-line radius
+		let ok = storehouses.some(sh => Math.max(Math.abs(sh.x - t.x), Math.abs(sh.y - t.y)) <= pickupRadius);
+		// otherwise, a path route: beside a road reachable from a Storehouse
+		if (!ok) {
+			for (const [dx, dy] of DIRS) {
+				const nx = t.x + dx,
+					ny = t.y + dy;
+				if (!inBounds(nx, ny)) continue;
+				const nk = idx(nx, ny);
+				if (map[nk].building === 'road' && flood.dist[nk] < Infinity) {
+					ok = true;
+					break;
+				}
 			}
 		}
+		if (ok) connected.add(here);
 	}
 
 	return {
 		connected,
 		producerCount,
 		connectedCount: connected.size,
-		storehouseCount,
+		storehouseCount: storehouses.length,
 	};
 }
 
 // ---------------------------------------------------------------------------
-// Cart routes: animated deliveries Agora -> houses
+// Cart routes: animated deliveries (food Agora->house, goods producer->store)
 // ---------------------------------------------------------------------------
 
-/** A delivery route as a polyline of tile coordinates from an Agora to a house. */
+/** A delivery route as a polyline of tile coordinates, tagged by what it hauls. */
 export interface CartRoute {
 	tiles: Point[];
+	kind: 'food' | 'goods';
 }
 
-/** Cap on how many carts we draw per Agora, to keep the map legible and cheap. */
-const MAX_ROUTES_PER_AGORA = 4;
+/** Cap on how many carts we draw per source, to keep the map legible and cheap. */
+const MAX_ROUTES_PER_SOURCE = 4;
+
+/** Nearest 4-adjacent road reachable from a flood source, or -1. */
+function bestFeederRoad(map: Tile[], t: Tile, flood: PathFlood): number {
+	let feeder = -1;
+	for (const [dx, dy] of DIRS) {
+		const nx = t.x + dx,
+			ny = t.y + dy;
+		if (!inBounds(nx, ny)) continue;
+		const nk = idx(nx, ny);
+		if (map[nk].building === 'road' && flood.dist[nk] < Infinity && (feeder === -1 || flood.dist[nk] < flood.dist[feeder])) {
+			feeder = nk;
+		}
+	}
+	return feeder;
+}
+
+/** Ordered path tiles from a feeder road back to its seed (nearest the source). */
+function roadChainToSeed(feeder: number, flood: PathFlood): number[] {
+	const chain: number[] = [];
+	for (let r = feeder; r !== -1; r = flood.parent[r]) chain.push(r);
+	return chain;
+}
 
 /**
  * Builds a walkable polyline (Agora → path tiles → house) for a sample of the
@@ -210,50 +242,91 @@ export function computeCartRoutes(map: Tile[], range = 6): CartRoute[] {
 	const flood = floodPaths(map, b => b === 'agora', range);
 	const routes: CartRoute[] = [];
 	const perAgora = new Map<number, number>();
-	const toPoint = (k: number): Point => ({ x: k % COLS, y: (k - (k % COLS)) / COLS });
+	const bump = (a: number) => {
+		const c = perAgora.get(a) ?? 0;
+		if (c >= MAX_ROUTES_PER_SOURCE) return false;
+		perAgora.set(a, c + 1);
+		return true;
+	};
 
 	for (const t of map) {
 		if (t.building !== 'house') continue;
-		// Find the reachable path tile (or Agora) that feeds this house.
-		let feederRoad = -1;
+		const house = idx(t.x, t.y);
+		// A house beside an Agora is fed straight from its forecourt.
 		let forecourtAgora = -1;
 		for (const [dx, dy] of DIRS) {
 			const nx = t.x + dx,
 				ny = t.y + dy;
 			if (!inBounds(nx, ny)) continue;
-			const nk = idx(nx, ny);
-			const n = map[nk];
-			if (n.building === 'agora') {
-				forecourtAgora = nk;
+			if (map[idx(nx, ny)].building === 'agora') {
+				forecourtAgora = idx(nx, ny);
 				break;
 			}
-			if (n.building === 'road' && flood.dist[nk] < Infinity && (feederRoad === -1 || flood.dist[nk] < flood.dist[feederRoad])) {
-				feederRoad = nk;
-			}
 		}
-
-		const house = idx(t.x, t.y);
 		if (forecourtAgora !== -1) {
-			const count = perAgora.get(forecourtAgora) ?? 0;
-			if (count >= MAX_ROUTES_PER_AGORA) continue;
-			perAgora.set(forecourtAgora, count + 1);
-			routes.push({ tiles: [toPoint(forecourtAgora), toPoint(house)] });
+			if (bump(forecourtAgora)) routes.push({ kind: 'food', tiles: [toPoint(forecourtAgora), toPoint(house)] });
 			continue;
 		}
-		if (feederRoad === -1) continue;
 
-		const agora = flood.source[feederRoad];
-		if (agora === -1) continue;
-		const count = perAgora.get(agora) ?? 0;
-		if (count >= MAX_ROUTES_PER_AGORA) continue;
-		perAgora.set(agora, count + 1);
+		const feeder = bestFeederRoad(map, t, flood);
+		if (feeder === -1) continue;
+		const agora = flood.source[feeder];
+		if (agora === -1 || !bump(agora)) continue;
+		// Order the polyline Agora -> ...roads... -> house.
+		const roadChain = roadChainToSeed(feeder, flood).reverse();
+		routes.push({ kind: 'food', tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
+	}
 
-		// Walk parents from the feeder road back to the seed, then order the
-		// polyline Agora -> ...roads... -> house.
-		const roadChain: number[] = [];
-		for (let r = feederRoad; r !== -1; r = flood.parent[r]) roadChain.push(r);
-		roadChain.reverse();
-		routes.push({ tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
+	return routes;
+}
+
+/**
+ * Builds delivery polylines from each connected producer to the Storehouse that
+ * stores its goods: a straight hop for a Storehouse within pickup range, or a
+ * walk along the path network for a longer haul. Mirrors computeStorageAccess.
+ */
+export function computeGoodsRoutes(map: Tile[], range = 8, pickupRadius = 2): CartRoute[] {
+	const flood = floodPaths(map, b => b === 'storehouse', range);
+	const storehouses: number[] = [];
+	for (const t of map) if (t.building === 'storehouse') storehouses.push(idx(t.x, t.y));
+
+	const routes: CartRoute[] = [];
+	const perStore = new Map<number, number>();
+	const bump = (sh: number) => {
+		const c = perStore.get(sh) ?? 0;
+		if (c >= MAX_ROUTES_PER_SOURCE) return false;
+		perStore.set(sh, c + 1);
+		return true;
+	};
+
+	for (const t of map) {
+		if (!t.building || !isProducer(t.building)) continue;
+		const prod = idx(t.x, t.y);
+
+		// nearest Storehouse within straight pickup range → a direct hop
+		let best = -1;
+		let bestD = Infinity;
+		for (const sh of storehouses) {
+			const p = toPoint(sh);
+			const d = Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y));
+			if (d <= pickupRadius && d < bestD) {
+				bestD = d;
+				best = sh;
+			}
+		}
+		if (best !== -1) {
+			if (bump(best)) routes.push({ kind: 'goods', tiles: [toPoint(prod), toPoint(best)] });
+			continue;
+		}
+
+		// otherwise haul along the path network to the Storehouse feeding it
+		const feeder = bestFeederRoad(map, t, flood);
+		if (feeder === -1) continue;
+		const sh = flood.source[feeder];
+		if (sh === -1 || !bump(sh)) continue;
+		// feeder..seed already runs toward the Storehouse; append the store itself.
+		const roadChain = roadChainToSeed(feeder, flood);
+		routes.push({ kind: 'goods', tiles: [toPoint(prod), ...roadChain.map(toPoint), toPoint(sh)] });
 	}
 
 	return routes;
