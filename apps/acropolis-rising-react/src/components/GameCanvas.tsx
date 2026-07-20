@@ -30,6 +30,16 @@ interface Walker {
   kind: 'arrive' | 'leave';
 }
 
+/** A resident who lives in the city and mills around their home. One per
+    citizen (up to a cap) so the population that eats food is actually visible. */
+interface Resident {
+  home: Point; // px anchor: a house centre, or the settlement centre
+  spread: number; // how far they wander from home
+  pos: Point;
+  target: Point;
+  speed: number; // px/sec
+}
+
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -137,6 +147,43 @@ const MAX_WALKERS = 16; // concurrent citizen sprites
 const MAX_SPAWN_PER_EVENT = 4; // sprites spawned for a single population change
 const ANIMATE_DELTA_LIMIT = 6; // ignore big jumps (load / new city), not real migration
 
+const MAX_RESIDENTS = 30; // cap on drawn residents (population beyond this is implied)
+const HOUSE_SPREAD = 12; // px residents wander around a house
+const CAMP_SPREAD = 55; // px residents wander around the settlement centre (no houses)
+
+/** Pixel centres of every house on the map. */
+function houseCenters(map: Tile[]): Point[] {
+  const out: Point[] = [];
+  for (const t of map) if (t.building === 'house') out.push({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 });
+  return out;
+}
+
+/** A random point within `spread` of an anchor, kept on the canvas. */
+function wanderNear(home: Point, spread: number): Point {
+  const a = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(Math.random()) * spread;
+  return {
+    x: Math.max(4, Math.min(COLS * TILE - 4, home.x + Math.cos(a) * r)),
+    y: Math.max(4, Math.min(ROWS * TILE - 4, home.y + Math.sin(a) * r)),
+  };
+}
+
+/** Draws a small idle resident (slightly smaller/calmer than a travelling citizen). */
+function drawResident(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.fillStyle = '#d3bd90';
+  ctx.beginPath();
+  ctx.moveTo(x - 2.5, y + 4);
+  ctx.lineTo(x + 2.5, y + 4);
+  ctx.lineTo(x + 1.7, y - 1);
+  ctx.lineTo(x - 1.7, y - 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#e8c9a0';
+  ctx.beginPath();
+  ctx.arc(x, y - 2.6, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /** Draws a tiny toga-clad citizen. Arrivals are bright; departures are muted. */
 function drawWalker(ctx: CanvasRenderingContext2D, x: number, y: number, kind: 'arrive' | 'leave') {
   const tunic = kind === 'leave' ? '#9a8f7a' : '#efe0b6';
@@ -202,6 +249,8 @@ export function GameCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cartCanvasRef = useRef<HTMLCanvasElement>(null);
   const walkersRef = useRef<Walker[]>([]);
+  const residentsRef = useRef<Resident[]>([]);
+  const lastFrameRef = useRef(0);
   const prevPopRef = useRef(population);
   // Kept in refs so the population effect can read the latest map/coverage
   // without re-running on every map change.
@@ -245,6 +294,43 @@ export function GameCanvas({
     }
     walkersRef.current = [...walkersRef.current, ...spawned].slice(-MAX_WALKERS);
   }, [population]);
+
+  // Keep one resident sprite per citizen (capped) so the population that eats
+  // the city's food is actually visible on the map.
+  useEffect(() => {
+    const homes = houseCenters(mapRef.current);
+    const center: Point = { x: (COLS / 2) * TILE, y: (ROWS / 2) * TILE };
+    const pick = () =>
+      homes.length ? { home: homes[Math.floor(Math.random() * homes.length)], spread: HOUSE_SPREAD } : { home: center, spread: CAMP_SPREAD };
+    const desired = Math.min(Math.round(population), MAX_RESIDENTS);
+    const arr = residentsRef.current;
+    if (arr.length > desired) {
+      residentsRef.current = arr.slice(0, desired);
+    } else if (arr.length < desired) {
+      const added: Resident[] = [];
+      for (let i = arr.length; i < desired; i++) {
+        const { home, spread } = pick();
+        added.push({ home, spread, pos: wanderNear(home, spread), target: wanderNear(home, spread), speed: 6 + Math.random() * 8 });
+      }
+      residentsRef.current = [...arr, ...added];
+    }
+  }, [population]);
+
+  // When the buildings change, resettle residents onto (or off) houses.
+  useEffect(() => {
+    const homes = houseCenters(map);
+    const center: Point = { x: (COLS / 2) * TILE, y: (ROWS / 2) * TILE };
+    for (const r of residentsRef.current) {
+      if (homes.length) {
+        r.home = homes[Math.floor(Math.random() * homes.length)];
+        r.spread = HOUSE_SPREAD;
+      } else {
+        r.home = center;
+        r.spread = CAMP_SPREAD;
+      }
+      r.target = wanderNear(r.home, r.spread);
+    }
+  }, [map]);
 
   // Static layer: terrain, paths, buildings, connection markers, selection.
   useEffect(() => {
@@ -292,8 +378,27 @@ export function GameCanvas({
     if (!canvas || !ctx) return;
 
     const startMs = performance.now();
+    lastFrameRef.current = startMs;
     const drawFrame = (nowMs: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const dt = Math.min(0.1, Math.max(0, (nowMs - lastFrameRef.current) / 1000));
+      lastFrameRef.current = nowMs;
+
+      // residents idly milling around their homes (drawn first, as backdrop)
+      for (const r of residentsRef.current) {
+        const dx = r.target.x - r.pos.x,
+          dy = r.target.y - r.pos.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1.5) {
+          r.target = wanderNear(r.home, r.spread);
+        } else {
+          const step = Math.min(dist, r.speed * dt);
+          r.pos.x += (dx / dist) * step;
+          r.pos.y += (dy / dist) * step;
+        }
+        drawResident(ctx, r.pos.x, r.pos.y);
+      }
+
       // carts
       const elapsed = (nowMs - startMs) / 1000;
       for (let i = 0; i < cartRoutes.length; i++) {
@@ -303,7 +408,8 @@ export function GameCanvas({
         const pos = cartPosition(route.tiles, elapsed * CART_SPEED + i * 0.7);
         drawCart(ctx, pos.x, pos.y, route.kind);
       }
-      // citizens (dropping any that have completed their walk)
+
+      // migrating citizens (dropping any that have completed their walk)
       const alive: Walker[] = [];
       for (const w of walkersRef.current) {
         const raw = (nowMs - w.bornAt) / w.dur;
