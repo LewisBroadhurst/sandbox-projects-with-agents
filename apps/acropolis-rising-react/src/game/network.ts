@@ -155,47 +155,44 @@ export interface StorageAccess {
 }
 
 /**
- * A producer can store its goods if a Storehouse is within `pickupRadius`
- * straight-line tiles (local pickup — the common case for gatherers on terrain
- * where paths can't be laid) or it sits beside a path within `range` of one.
- * Without a route to storage it produces nothing — goods have nowhere to go.
+ * A producer can store its goods only over an orthogonal road route: either it
+ * sits right beside a Storehouse (its loading dock — no road needed, like an
+ * Agora's forecourt) or beside a path tile within `range` of a Storehouse along
+ * the network. A gatherer on forest/hill/mountain, where paths can't be laid,
+ * connects by putting a road on the adjacent grass/coast. Without such a route
+ * it produces nothing — goods have nowhere to go.
  */
-export function computeStorageAccess(map: Tile[], range = 8, pickupRadius = 2): StorageAccess {
+export function computeStorageAccess(map: Tile[], range = 8): StorageAccess {
 	const flood = floodPaths(map, b => b === 'storehouse', range);
-	const storehouses: Tile[] = [];
 	const connected = new Set<number>();
+	let storehouseCount = 0;
 	let producerCount = 0;
 
-	for (const t of map) if (t.building === 'storehouse') storehouses.push(t);
+	for (const t of map) if (t.building === 'storehouse') storehouseCount++;
 
 	for (const t of map) {
 		if (!t.building || !isProducer(t.building)) continue;
 		producerCount++;
 		const here = idx(t.x, t.y);
 
-		// local pickup: any Storehouse within the straight-line radius
-		let ok = storehouses.some(sh => Math.max(Math.abs(sh.x - t.x), Math.abs(sh.y - t.y)) <= pickupRadius);
-		// otherwise, a path route: beside a road reachable from a Storehouse
-		if (!ok) {
-			for (const [dx, dy] of DIRS) {
-				const nx = t.x + dx,
-					ny = t.y + dy;
-				if (!inBounds(nx, ny)) continue;
-				const nk = idx(nx, ny);
-				if (map[nk].building === 'road' && flood.dist[nk] < Infinity) {
-					ok = true;
-					break;
-				}
+		// beside a Storehouse (loading dock) or beside a reachable path tile
+		for (const [dx, dy] of DIRS) {
+			const nx = t.x + dx,
+				ny = t.y + dy;
+			if (!inBounds(nx, ny)) continue;
+			const n = map[idx(nx, ny)];
+			if (n.building === 'storehouse' || (n.building === 'road' && flood.dist[idx(nx, ny)] < Infinity)) {
+				connected.add(here);
+				break;
 			}
 		}
-		if (ok) connected.add(here);
 	}
 
 	return {
 		connected,
 		producerCount,
 		connectedCount: connected.size,
-		storehouseCount: storehouses.length,
+		storehouseCount,
 	};
 }
 
@@ -232,29 +229,6 @@ function roadChainToSeed(feeder: number, flood: PathFlood): number[] {
 	const chain: number[] = [];
 	for (let r = feeder; r !== -1; r = flood.parent[r]) chain.push(r);
 	return chain;
-}
-
-/**
- * Rewrites a route polyline so every segment runs purely horizontally or
- * vertically. Path-following segments are already grid-aligned, but a direct
- * pickup hop (a Storehouse within Chebyshev range of a gatherer) can be an
- * off-axis diagonal. Splitting each diagonal at an elbow — horizontal leg
- * first, then vertical — keeps carts travelling along tile rows and columns
- * instead of cutting across squares.
- */
-function orthogonalize(tiles: Point[]): Point[] {
-	const out: Point[] = [];
-	for (let i = 0; i < tiles.length; i++) {
-		const p = tiles[i];
-		if (i > 0) {
-			const prev = tiles[i - 1];
-			// A segment with movement on both axes is a diagonal: bend it at a
-			// corner that shares the previous tile's row and this tile's column.
-			if (prev.x !== p.x && prev.y !== p.y) out.push({ x: p.x, y: prev.y });
-		}
-		out.push(p);
-	}
-	return out;
 }
 
 /**
@@ -300,19 +274,17 @@ export function computeCartRoutes(map: Tile[], range = 6): CartRoute[] {
 		routes.push({ kind: 'food', tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
 	}
 
-	return routes.map(r => ({ ...r, tiles: orthogonalize(r.tiles) }));
+	return routes;
 }
 
 /**
  * Builds delivery polylines from each connected producer to the Storehouse that
- * stores its goods: a straight hop for a Storehouse within pickup range, or a
- * walk along the path network for a longer haul. Mirrors computeStorageAccess.
+ * stores its goods: a single orthogonal hop to a Storehouse right beside the
+ * producer, or a walk along the path network for a longer haul. Mirrors
+ * computeStorageAccess, so every segment runs along a tile row or column.
  */
-export function computeGoodsRoutes(map: Tile[], range = 8, pickupRadius = 2): CartRoute[] {
+export function computeGoodsRoutes(map: Tile[], range = 8): CartRoute[] {
 	const flood = floodPaths(map, b => b === 'storehouse', range);
-	const storehouses: number[] = [];
-	for (const t of map) if (t.building === 'storehouse') storehouses.push(idx(t.x, t.y));
-
 	const routes: CartRoute[] = [];
 	const perStore = new Map<number, number>();
 	const bump = (sh: number) => {
@@ -326,19 +298,21 @@ export function computeGoodsRoutes(map: Tile[], range = 8, pickupRadius = 2): Ca
 		if (!t.building || !isProducer(t.building)) continue;
 		const prod = idx(t.x, t.y);
 
-		// nearest Storehouse within straight pickup range → a direct hop
-		let best = -1;
-		let bestD = Infinity;
-		for (const sh of storehouses) {
-			const p = toPoint(sh);
-			const d = Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y));
-			if (d <= pickupRadius && d < bestD) {
-				bestD = d;
-				best = sh;
+		// a Storehouse right beside the producer takes goods from its loading
+		// dock — a single orthogonal hop, no road needed
+		let dock = -1;
+		for (const [dx, dy] of DIRS) {
+			const nx = t.x + dx,
+				ny = t.y + dy;
+			if (!inBounds(nx, ny)) continue;
+			const nk = idx(nx, ny);
+			if (map[nk].building === 'storehouse') {
+				dock = nk;
+				break;
 			}
 		}
-		if (best !== -1) {
-			if (bump(best)) routes.push({ kind: 'goods', tiles: [toPoint(prod), toPoint(best)] });
+		if (dock !== -1) {
+			if (bump(dock)) routes.push({ kind: 'goods', tiles: [toPoint(prod), toPoint(dock)] });
 			continue;
 		}
 
@@ -352,5 +326,5 @@ export function computeGoodsRoutes(map: Tile[], range = 8, pickupRadius = 2): Ca
 		routes.push({ kind: 'goods', tiles: [toPoint(prod), ...roadChain.map(toPoint), toPoint(sh)] });
 	}
 
-	return routes.map(r => ({ ...r, tiles: orthogonalize(r.tiles) }));
+	return routes;
 }

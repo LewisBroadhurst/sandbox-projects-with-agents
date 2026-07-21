@@ -115,20 +115,29 @@ describe('computeStorageAccess', () => {
 		expect(acc.connected.has(1 * COLS + 9)).toBe(false);
 	});
 
-	it('connects a gatherer to a nearby Storehouse within pickup range (no path)', () => {
+	it('does not connect a gatherer that only touches a Storehouse diagonally', () => {
 		const m = grid();
 		put(m, 5, 5, 'storehouse');
-		put(m, 7, 6, 'lumber'); // 2 tiles away diagonally, no road between
-		const acc = computeStorageAccess(m, 8, 2);
-		expect(acc.connected.has(6 * COLS + 7)).toBe(true);
+		put(m, 6, 6, 'lumber'); // corner-adjacent only, no orthogonal road route
+		const acc = computeStorageAccess(m);
+		expect(acc.connected.has(6 * COLS + 6)).toBe(false);
 	});
 
-	it('does not connect a gatherer beyond pickup range without a path', () => {
+	it('connects that gatherer once a road bridges it to the Storehouse', () => {
 		const m = grid();
 		put(m, 5, 5, 'storehouse');
-		put(m, 8, 5, 'lumber'); // 3 tiles away, outside pickup range 2, no road
-		const acc = computeStorageAccess(m, 8, 2);
-		expect(acc.connected.has(5 * COLS + 8)).toBe(false);
+		put(m, 6, 5, 'road'); // beside the Storehouse (reachable) ...
+		put(m, 6, 6, 'lumber'); // ... and beside the gatherer → an orthogonal route
+		const acc = computeStorageAccess(m);
+		expect(acc.connected.has(6 * COLS + 6)).toBe(true);
+	});
+
+	it('does not connect a gatherer two straight tiles away with no path', () => {
+		const m = grid();
+		put(m, 5, 5, 'storehouse');
+		put(m, 7, 5, 'lumber'); // same row but a tile short of adjacent, no road
+		const acc = computeStorageAccess(m);
+		expect(acc.connected.has(5 * COLS + 7)).toBe(false);
 	});
 });
 
@@ -139,32 +148,25 @@ describe('computeGoodsRoutes', () => {
 		expect(computeGoodsRoutes(m)).toEqual([]);
 	});
 
-	it('makes a direct goods route from a producer to a Storehouse in pickup range', () => {
+	it('makes a direct one-hop goods route from a producer beside a Storehouse', () => {
 		const m = grid();
 		put(m, 5, 5, 'storehouse');
-		put(m, 6, 5, 'quarry'); // 1 tile away, same row → a single horizontal hop
-		const routes = computeGoodsRoutes(m, 8, 2);
+		put(m, 6, 5, 'quarry'); // orthogonally adjacent → a single horizontal hop
+		const routes = computeGoodsRoutes(m);
 		expect(routes).toHaveLength(1);
 		expect(routes[0].kind).toBe('goods');
 		expect(routes[0].tiles).toEqual([
 			{ x: 6, y: 5 },
 			{ x: 5, y: 5 },
 		]);
+		expectOrthogonal(routes[0].tiles);
 	});
 
-	it('bends a diagonal pickup hop into orthogonal (H then V) segments', () => {
+	it('draws no route for a producer that only touches a Storehouse diagonally', () => {
 		const m = grid();
 		put(m, 5, 5, 'storehouse');
-		put(m, 6, 6, 'quarry'); // 1 tile away diagonally
-		const routes = computeGoodsRoutes(m, 8, 2);
-		expect(routes).toHaveLength(1);
-		// producer -> elbow (shares producer's row, store's column) -> storehouse
-		expect(routes[0].tiles).toEqual([
-			{ x: 6, y: 6 },
-			{ x: 5, y: 6 },
-			{ x: 5, y: 5 },
-		]);
-		expectOrthogonal(routes[0].tiles);
+		put(m, 6, 6, 'quarry'); // corner-adjacent only, no orthogonal road route
+		expect(computeGoodsRoutes(m)).toEqual([]);
 	});
 
 	it('hauls goods along the path from a distant producer to its Storehouse', () => {
@@ -172,7 +174,7 @@ describe('computeGoodsRoutes', () => {
 		put(m, 0, 0, 'storehouse');
 		for (let x = 1; x <= 3; x++) put(m, x, 0, 'road');
 		put(m, 3, 1, 'mine'); // 3 tiles away → routed along the path, not straight
-		const routes = computeGoodsRoutes(m, 8, 2);
+		const routes = computeGoodsRoutes(m);
 		expect(routes).toHaveLength(1);
 		const tiles = routes[0].tiles;
 		expect(tiles[0]).toEqual({ x: 3, y: 1 }); // starts at the producer

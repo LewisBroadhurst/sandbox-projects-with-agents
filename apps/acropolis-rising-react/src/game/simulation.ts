@@ -1,4 +1,15 @@
-import { AGORA_RANGE, BLESSINGS, BUILDINGS, COLS, MILESTONES, RESOURCE_ORDER, ROWS, STOREHOUSE_PICKUP, STOREHOUSE_RANGE, countBuildings, countTemples } from './data';
+import {
+	AGORA_RANGE,
+	BLESSINGS,
+	BUILDINGS,
+	COLS,
+	MILESTONES,
+	RESOURCE_ORDER,
+	ROWS,
+	STOREHOUSE_RANGE,
+	countBuildings,
+	countTemples,
+} from './data';
 import { generateMap } from './map';
 import { computeCoverage, computeStorageAccess } from './network';
 import { makeRng, randomSeed } from './rng';
@@ -177,7 +188,7 @@ export function tick(prev: GameState): ActionResult {
 	const zb = zeusBonus(s);
 	const boosts = collectBoostSources(s);
 	// Goods only enter the stores if the producer can reach a Storehouse.
-	const storage = computeStorageAccess(s.map, STOREHOUSE_RANGE, STOREHOUSE_PICKUP);
+	const storage = computeStorageAccess(s.map, STOREHOUSE_RANGE);
 
 	// production / gathering
 	for (const t of s.map) {
