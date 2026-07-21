@@ -1,10 +1,11 @@
 name: Deploy Acropolis Rising to GitHub Pages
 
 on:
-  # Deploy on every push to main...
-  push:
-    branches:
-      - main
+  # Deploy only when a GitHub release is published (creating a release also
+  # creates its tag). This means Acropolis Rising ships on demand rather than
+  # on every push to main.
+  release:
+    types: [published]
   # ...and allow manual runs from the Actions tab.
   workflow_dispatch:
 
