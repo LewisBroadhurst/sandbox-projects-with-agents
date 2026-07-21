@@ -15,6 +15,15 @@ const put = (m: Tile[], x: number, y: number, b: BuildingId) => {
 };
 const houseCap = BUILDINGS.house.capacity ?? 0;
 
+/** Asserts every segment of a route polyline moves on a single axis (no diagonals). */
+function expectOrthogonal(tiles: { x: number; y: number }[]) {
+	for (let i = 1; i < tiles.length; i++) {
+		const a = tiles[i - 1];
+		const b = tiles[i];
+		expect(a.x === b.x || a.y === b.y, `segment ${i} is diagonal: ${JSON.stringify(a)}->${JSON.stringify(b)}`).toBe(true);
+	}
+}
+
 describe('computeCoverage', () => {
 	it('counts every house in totalCapacity but services none without an Agora', () => {
 		const m = grid();
@@ -133,14 +142,29 @@ describe('computeGoodsRoutes', () => {
 	it('makes a direct goods route from a producer to a Storehouse in pickup range', () => {
 		const m = grid();
 		put(m, 5, 5, 'storehouse');
-		put(m, 6, 6, 'quarry'); // 1 tile away
+		put(m, 6, 5, 'quarry'); // 1 tile away, same row → a single horizontal hop
 		const routes = computeGoodsRoutes(m, 8, 2);
 		expect(routes).toHaveLength(1);
 		expect(routes[0].kind).toBe('goods');
 		expect(routes[0].tiles).toEqual([
-			{ x: 6, y: 6 },
+			{ x: 6, y: 5 },
 			{ x: 5, y: 5 },
 		]);
+	});
+
+	it('bends a diagonal pickup hop into orthogonal (H then V) segments', () => {
+		const m = grid();
+		put(m, 5, 5, 'storehouse');
+		put(m, 6, 6, 'quarry'); // 1 tile away diagonally
+		const routes = computeGoodsRoutes(m, 8, 2);
+		expect(routes).toHaveLength(1);
+		// producer -> elbow (shares producer's row, store's column) -> storehouse
+		expect(routes[0].tiles).toEqual([
+			{ x: 6, y: 6 },
+			{ x: 5, y: 6 },
+			{ x: 5, y: 5 },
+		]);
+		expectOrthogonal(routes[0].tiles);
 	});
 
 	it('hauls goods along the path from a distant producer to its Storehouse', () => {
@@ -154,6 +178,7 @@ describe('computeGoodsRoutes', () => {
 		expect(tiles[0]).toEqual({ x: 3, y: 1 }); // starts at the producer
 		expect(tiles[tiles.length - 1]).toEqual({ x: 0, y: 0 }); // ends at the Storehouse
 		expect(tiles.length).toBeGreaterThan(2);
+		expectOrthogonal(tiles);
 	});
 });
 
@@ -187,5 +212,6 @@ describe('computeCartRoutes', () => {
 		expect(tiles[0]).toEqual({ x: 0, y: 0 }); // starts at the Agora
 		expect(tiles[tiles.length - 1]).toEqual({ x: 3, y: 1 }); // ends at the house
 		expect(tiles.length).toBeGreaterThan(2); // walks the path between
+		expectOrthogonal(tiles);
 	});
 });

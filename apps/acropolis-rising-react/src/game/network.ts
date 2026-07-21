@@ -235,6 +235,29 @@ function roadChainToSeed(feeder: number, flood: PathFlood): number[] {
 }
 
 /**
+ * Rewrites a route polyline so every segment runs purely horizontally or
+ * vertically. Path-following segments are already grid-aligned, but a direct
+ * pickup hop (a Storehouse within Chebyshev range of a gatherer) can be an
+ * off-axis diagonal. Splitting each diagonal at an elbow — horizontal leg
+ * first, then vertical — keeps carts travelling along tile rows and columns
+ * instead of cutting across squares.
+ */
+function orthogonalize(tiles: Point[]): Point[] {
+	const out: Point[] = [];
+	for (let i = 0; i < tiles.length; i++) {
+		const p = tiles[i];
+		if (i > 0) {
+			const prev = tiles[i - 1];
+			// A segment with movement on both axes is a diagonal: bend it at a
+			// corner that shares the previous tile's row and this tile's column.
+			if (prev.x !== p.x && prev.y !== p.y) out.push({ x: p.x, y: prev.y });
+		}
+		out.push(p);
+	}
+	return out;
+}
+
+/**
  * Builds a walkable polyline (Agora → path tiles → house) for a sample of the
  * houses each Agora feeds, used to animate market carts along the network.
  */
@@ -277,7 +300,7 @@ export function computeCartRoutes(map: Tile[], range = 6): CartRoute[] {
 		routes.push({ kind: 'food', tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
 	}
 
-	return routes;
+	return routes.map(r => ({ ...r, tiles: orthogonalize(r.tiles) }));
 }
 
 /**
@@ -329,5 +352,5 @@ export function computeGoodsRoutes(map: Tile[], range = 8, pickupRadius = 2): Ca
 		routes.push({ kind: 'goods', tiles: [toPoint(prod), ...roadChain.map(toPoint), toPoint(sh)] });
 	}
 
-	return routes;
+	return routes.map(r => ({ ...r, tiles: orthogonalize(r.tiles) }));
 }
