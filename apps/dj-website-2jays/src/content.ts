@@ -13,8 +13,7 @@ export const profile = {
 	name: '2JAYS',
 	tagline: 'Funky. Forward. Ready to move a room.',
 	// One or two lines that show up right under your name in the hero.
-	intro:
-		'House, disco and everything with soul — mixed live, mixed loud. Available to book for small gigs, parties and club nights.',
+	intro: 'House, disco and everything with soul — mixed live, mixed loud. Available to book for small gigs, parties and club nights.',
 	// Genres shown as little pills in the hero.
 	genres: ['House', 'Disco', 'Funk', 'UK Garage', 'Soulful Grooves'],
 	// Where you're based (shown in the booking section).
