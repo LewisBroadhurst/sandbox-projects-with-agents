@@ -258,6 +258,12 @@ export function GameCanvas({
   mapRef.current = map;
   const servicedRef = useRef(servicedHouses);
   servicedRef.current = servicedHouses;
+  // Read the latest delivery routes inside the animation loop without making the
+  // loop restart every time the map (and so the routes) change — otherwise every
+  // building placement tears down and re-seeds the RAF loop, resetting its clock
+  // and blanking the carts/citizens for a frame on each click.
+  const cartRoutesRef = useRef(cartRoutes);
+  cartRoutesRef.current = cartRoutes;
 
   // Spawn citizens whenever the population changes: walking toward a fed house
   // when it grows, or off the nearest map edge when the city shrinks.
@@ -316,11 +322,15 @@ export function GameCanvas({
     }
   }, [population]);
 
-  // When the buildings change, resettle residents onto (or off) houses.
+  // When the buildings change, resettle only the residents whose home no longer
+  // exists (a bulldozed house, or the camp centre once houses appear). Residents
+  // whose house still stands are left where they are, so placing a new building
+  // doesn't teleport the whole population on every click.
   useEffect(() => {
     const homes = houseCenters(map);
     const center: Point = { x: (COLS / 2) * TILE, y: (ROWS / 2) * TILE };
     for (const r of residentsRef.current) {
+      if (homes.some((h) => h.x === r.home.x && h.y === r.home.y)) continue;
       if (homes.length) {
         r.home = homes[Math.floor(Math.random() * homes.length)];
         r.spread = HOUSE_SPREAD;
@@ -401,8 +411,9 @@ export function GameCanvas({
 
       // carts
       const elapsed = (nowMs - startMs) / 1000;
-      for (let i = 0; i < cartRoutes.length; i++) {
-        const route = cartRoutes[i];
+      const routes = cartRoutesRef.current;
+      for (let i = 0; i < routes.length; i++) {
+        const route = routes[i];
         if (route.tiles.length < 2) continue;
         // stagger carts so they don't march in lockstep
         const pos = cartPosition(route.tiles, elapsed * CART_SPEED + i * 0.7);
@@ -433,7 +444,7 @@ export function GameCanvas({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [cartRoutes, paused]);
+  }, [paused]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
