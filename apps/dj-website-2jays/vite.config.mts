@@ -2,15 +2,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const port = Number(process.env.PORT) || 4200;
+
 export default defineConfig(() => ({
 	root: import.meta.dirname,
-	cacheDir: '../../node_modules/.vite/apps/dj-website',
+	cacheDir: '../../node_modules/.vite/apps/dj-website-2jays',
 	server: {
-		port: 4200,
+		port,
 		host: 'localhost',
 	},
 	preview: {
-		port: 4200,
+		port,
 		host: 'localhost',
 	},
 	plugins: [react()],
@@ -27,7 +29,7 @@ export default defineConfig(() => ({
 		},
 	},
 	test: {
-		name: '@org/dj-website',
+		name: '@org/dj-website-2jays',
 		watch: false,
 		globals: true,
 		environment: 'jsdom',
