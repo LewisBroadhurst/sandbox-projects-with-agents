@@ -7,9 +7,9 @@ on:
     types: [labeled]
 
 permissions:
-  contents: write        # push a fix branch
-  pull-requests: write   # open the PR
-  issues: write          # comment back on the issue
+  contents: write # push a fix branch
+  pull-requests: write # open the PR
+  issues: write # comment back on the issue
 
 jobs:
   fix-issue:

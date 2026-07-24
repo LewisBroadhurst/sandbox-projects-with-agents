@@ -167,7 +167,12 @@ describe('tick', () => {
 		let s = blankState(3);
 		s.resources.fish = 300; // plenty of food in the stores
 		// four houses around (5,5) but no Agora to distribute food
-		for (const [x, y] of [[4, 5], [6, 5], [5, 4], [5, 6]] as const) {
+		for (const [x, y] of [
+			[4, 5],
+			[6, 5],
+			[5, 4],
+			[5, 6],
+		] as const) {
 			s.map[y * COLS + x] = { ...s.map[y * COLS + x], building: 'house' };
 		}
 		const start = s.population;
@@ -180,7 +185,12 @@ describe('tick', () => {
 		s.resources.fish = 300;
 		s.map[5 * COLS + 5] = { ...s.map[5 * COLS + 5], building: 'agora' };
 		// houses on the Agora forecourt (24 capacity > starting population)
-		for (const [x, y] of [[4, 5], [6, 5], [5, 4], [5, 6]] as const) {
+		for (const [x, y] of [
+			[4, 5],
+			[6, 5],
+			[5, 4],
+			[5, 6],
+		] as const) {
 			s.map[y * COLS + x] = { ...s.map[y * COLS + x], building: 'house' };
 		}
 		const start = s.population;
