@@ -1,6 +1,7 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 const port = Number(process.env.PORT) || 4200;
 
@@ -15,7 +16,7 @@ export default defineConfig(() => ({
 		port,
 		host: 'localhost',
 	},
-	plugins: [react()],
+	plugins: [react(), tailwindcss()],
 	// Uncomment this if you are using workers.
 	// worker: {
 	//  plugins: [],
