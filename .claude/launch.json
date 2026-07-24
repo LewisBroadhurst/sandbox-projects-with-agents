@@ -1,18 +1,17 @@
 {
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "acropolis-rising-react",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "@org/acropolis-rising-react"],
-      "port": 4200
-    },
-    {
-      "name": "dj-website-2jays",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "dev", "@org/dj-website-2jays"],
-      "port": 4200,
-      "autoPort": true
-    }
-  ]
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "acropolis-rising-react",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["nx", "serve", "@org/acropolis-rising-react"],
+			"port": 4200
+		},
+		{
+			"name": "dj-website",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["nx", "dev", "@org/dj-website"],
+			"port": 4200
+		}
+	]
 }

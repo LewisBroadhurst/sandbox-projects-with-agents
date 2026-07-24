@@ -127,11 +127,7 @@ Add `"jsx": "react-jsx"` — in `tsconfig.base.json` for single-framework worksp
 ```js
 import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
-export default [
-  ...baseConfig,
-  ...nx.configs['flat/react'],
-  { files: ['**/*.ts', '**/*.tsx'], rules: {} },
-];
+export default [...baseConfig, ...nx.configs['flat/react'], { files: ['**/*.ts', '**/*.tsx'], rules: {} }];
 ```
 
 ### React Version Conflicts
@@ -167,9 +163,9 @@ Vue SFC files need a type declaration. Usually exists in each project's `src/` a
 
 ```ts
 declare module '*.vue' {
-  import { defineComponent } from 'vue';
-  const component: ReturnType<typeof defineComponent>;
-  export default component;
+	import { defineComponent } from 'vue';
+	const component: ReturnType<typeof defineComponent>;
+	export default component;
 }
 ```
 
@@ -195,16 +191,16 @@ import vueParser from 'vue-eslint-parser';
 import tsParser from '@typescript-eslint/parser';
 import baseConfig from '../../eslint.config.mjs';
 export default [
-  ...baseConfig,
-  ...vue.configs['flat/recommended'],
-  {
-    files: ['**/*.vue'],
-    languageOptions: { parser: vueParser, parserOptions: { parser: tsParser } },
-  },
-  {
-    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.vue'],
-    rules: { 'vue/multi-word-component-names': 'off' },
-  },
+	...baseConfig,
+	...vue.configs['flat/recommended'],
+	{
+		files: ['**/*.vue'],
+		languageOptions: { parser: vueParser, parserOptions: { parser: tsParser } },
+	},
+	{
+		files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.vue'],
+		rules: { 'vue/multi-word-component-names': 'off' },
+	},
 ];
 ```
 
@@ -232,17 +228,17 @@ When both frameworks coexist, several settings become per-project.
 
 ```json
 {
-  "plugins": [
-    { "plugin": "@nx/eslint/plugin", "options": { "targetName": "lint" } },
-    {
-      "plugin": "@nx/vite/plugin",
-      "options": {
-        "buildTargetName": "build",
-        "typecheckTargetName": "typecheck",
-        "testTargetName": "test"
-      }
-    }
-  ]
+	"plugins": [
+		{ "plugin": "@nx/eslint/plugin", "options": { "targetName": "lint" } },
+		{
+			"plugin": "@nx/vite/plugin",
+			"options": {
+				"buildTargetName": "build",
+				"typecheckTargetName": "typecheck",
+				"testTargetName": "test"
+			}
+		}
+	]
 }
 ```
 

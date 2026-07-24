@@ -60,9 +60,9 @@ When `@nx/next:init` runs during a whole-repo import, it rewrites the project's 
 
 ```json
 {
-  "dev": "nx next:dev",
-  "build": "nx next:build",
-  "start": "nx next:start"
+	"dev": "nx next:dev",
+	"build": "nx next:build",
+	"start": "nx next:start"
 }
 ```
 
