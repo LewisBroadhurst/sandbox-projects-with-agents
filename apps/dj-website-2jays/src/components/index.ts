@@ -1,0 +1,9 @@
+export { Nav } from './Nav';
+export { Hero } from './Hero';
+export { Marquee } from './Marquee';
+export { About } from './About';
+export { Listen } from './Listen';
+export { Watch } from './Watch';
+export { Gigs } from './Gigs';
+export { Book } from './Book';
+export { Footer } from './Footer';
