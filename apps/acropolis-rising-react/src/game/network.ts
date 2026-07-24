@@ -249,7 +249,23 @@ export function computeCartRoutes(map: Tile[], range = 6): CartRoute[] {
 	for (const t of map) {
 		if (t.building !== 'house') continue;
 		const house = idx(t.x, t.y);
-		// A house beside an Agora is fed straight from its forecourt.
+
+		// Prefer hauling food along the path network whenever the house sits beside
+		// a reachable road, so carts always travel the roads the player laid — even
+		// when an Agora stands right next door.
+		const feeder = bestFeederRoad(map, t, flood);
+		if (feeder !== -1) {
+			const agora = flood.source[feeder];
+			if (agora !== -1 && bump(agora)) {
+				// Order the polyline Agora -> ...roads... -> house.
+				const roadChain = roadChainToSeed(feeder, flood).reverse();
+				routes.push({ kind: 'food', tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
+			}
+			continue;
+		}
+
+		// Fallback: no road reaches the house, so a directly adjacent Agora feeds
+		// it straight from its forecourt.
 		let forecourtAgora = -1;
 		for (const [dx, dy] of DIRS) {
 			const nx = t.x + dx,
@@ -260,18 +276,9 @@ export function computeCartRoutes(map: Tile[], range = 6): CartRoute[] {
 				break;
 			}
 		}
-		if (forecourtAgora !== -1) {
-			if (bump(forecourtAgora)) routes.push({ kind: 'food', tiles: [toPoint(forecourtAgora), toPoint(house)] });
-			continue;
+		if (forecourtAgora !== -1 && bump(forecourtAgora)) {
+			routes.push({ kind: 'food', tiles: [toPoint(forecourtAgora), toPoint(house)] });
 		}
-
-		const feeder = bestFeederRoad(map, t, flood);
-		if (feeder === -1) continue;
-		const agora = flood.source[feeder];
-		if (agora === -1 || !bump(agora)) continue;
-		// Order the polyline Agora -> ...roads... -> house.
-		const roadChain = roadChainToSeed(feeder, flood).reverse();
-		routes.push({ kind: 'food', tiles: [toPoint(agora), ...roadChain.map(toPoint), toPoint(house)] });
 	}
 
 	return routes;
@@ -298,8 +305,22 @@ export function computeGoodsRoutes(map: Tile[], range = 8): CartRoute[] {
 		if (!t.building || !isProducer(t.building)) continue;
 		const prod = idx(t.x, t.y);
 
-		// a Storehouse right beside the producer takes goods from its loading
-		// dock — a single orthogonal hop, no road needed
+		// Prefer hauling goods along the path network whenever the producer sits
+		// beside a reachable road, so carts follow the roads the player laid — even
+		// when a Storehouse stands right beside the producer.
+		const feeder = bestFeederRoad(map, t, flood);
+		if (feeder !== -1) {
+			const sh = flood.source[feeder];
+			if (sh !== -1 && bump(sh)) {
+				// feeder..seed already runs toward the Storehouse; append the store itself.
+				const roadChain = roadChainToSeed(feeder, flood);
+				routes.push({ kind: 'goods', tiles: [toPoint(prod), ...roadChain.map(toPoint), toPoint(sh)] });
+			}
+			continue;
+		}
+
+		// Fallback: no road reaches the producer, so a Storehouse right beside it
+		// takes goods from its loading dock — a single orthogonal hop, no road needed.
 		let dock = -1;
 		for (const [dx, dy] of DIRS) {
 			const nx = t.x + dx,
@@ -311,19 +332,9 @@ export function computeGoodsRoutes(map: Tile[], range = 8): CartRoute[] {
 				break;
 			}
 		}
-		if (dock !== -1) {
-			if (bump(dock)) routes.push({ kind: 'goods', tiles: [toPoint(prod), toPoint(dock)] });
-			continue;
+		if (dock !== -1 && bump(dock)) {
+			routes.push({ kind: 'goods', tiles: [toPoint(prod), toPoint(dock)] });
 		}
-
-		// otherwise haul along the path network to the Storehouse feeding it
-		const feeder = bestFeederRoad(map, t, flood);
-		if (feeder === -1) continue;
-		const sh = flood.source[feeder];
-		if (sh === -1 || !bump(sh)) continue;
-		// feeder..seed already runs toward the Storehouse; append the store itself.
-		const roadChain = roadChainToSeed(feeder, flood);
-		routes.push({ kind: 'goods', tiles: [toPoint(prod), ...roadChain.map(toPoint), toPoint(sh)] });
 	}
 
 	return routes;

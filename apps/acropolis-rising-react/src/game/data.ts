@@ -51,12 +51,16 @@ export const BUILDINGS: Record<BuildingId, Building> = {
 	storehouse: {
 		name: 'Storehouse',
 		cat: 'Infrastructure',
+		// Gold only, on purpose: every producer needs a Storehouse route to yield
+		// anything, so gating the Storehouse behind a finite resource (stone) can
+		// strand a player who runs dry before building one. Gold always trickles
+		// in from taxes, so the storage economy can never deadlock.
 		icon: '📦',
-		cost: { gold: 28, stone: 15 },
+		cost: { gold: 35 },
 		allow: ['grass', 'coast'],
 		jobs: 1,
 		storageBonus: 200,
-		desc: '+200 storage for every resource.',
+		desc: 'Costs only gold. +200 storage for every resource.',
 	},
 
 	lumber: {

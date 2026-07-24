@@ -169,6 +169,21 @@ describe('computeGoodsRoutes', () => {
 		expect(computeGoodsRoutes(m)).toEqual([]);
 	});
 
+	it('routes along the path even when a Storehouse sits beside the producer', () => {
+		const m = grid();
+		put(m, 2, 0, 'storehouse');
+		put(m, 3, 0, 'road'); // seed beside the Storehouse
+		put(m, 3, 1, 'road'); // continues alongside the producer
+		put(m, 2, 1, 'farm'); // touches the Storehouse (dock) AND the road at (3,1)
+		const routes = computeGoodsRoutes(m, 8);
+		expect(routes).toHaveLength(1);
+		const tiles = routes[0].tiles;
+		expect(tiles[0]).toEqual({ x: 2, y: 1 }); // starts at the producer
+		expect(tiles[tiles.length - 1]).toEqual({ x: 2, y: 0 }); // ends at the Storehouse
+		expect(tiles.length).toBeGreaterThan(2); // follows the road, not a straight dock hop
+		expectOrthogonal(tiles);
+	});
+
 	it('hauls goods along the path from a distant producer to its Storehouse', () => {
 		const m = grid();
 		put(m, 0, 0, 'storehouse');
@@ -214,6 +229,21 @@ describe('computeCartRoutes', () => {
 		expect(tiles[0]).toEqual({ x: 0, y: 0 }); // starts at the Agora
 		expect(tiles[tiles.length - 1]).toEqual({ x: 3, y: 1 }); // ends at the house
 		expect(tiles.length).toBeGreaterThan(2); // walks the path between
+		expectOrthogonal(tiles);
+	});
+
+	it('routes along the path even when an Agora sits beside the house', () => {
+		const m = grid();
+		put(m, 2, 0, 'agora');
+		put(m, 3, 0, 'road'); // seed beside the Agora
+		put(m, 3, 1, 'road'); // continues alongside the house
+		put(m, 2, 1, 'house'); // touches the Agora (forecourt) AND the road at (3,1)
+		const routes = computeCartRoutes(m, 6);
+		expect(routes).toHaveLength(1);
+		const tiles = routes[0].tiles;
+		expect(tiles[0]).toEqual({ x: 2, y: 0 }); // starts at the Agora
+		expect(tiles[tiles.length - 1]).toEqual({ x: 2, y: 1 }); // ends at the house
+		expect(tiles.length).toBeGreaterThan(2); // follows the road, not a straight forecourt hop
 		expectOrthogonal(tiles);
 	});
 });
