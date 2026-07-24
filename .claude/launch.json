@@ -8,10 +8,11 @@
       "port": 4200
     },
     {
-      "name": "dj-website",
+      "name": "dj-website-2jays",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "dev", "@org/dj-website"],
-      "port": 4200
+      "runtimeArgs": ["nx", "dev", "@org/dj-website-2jays"],
+      "port": 4200,
+      "autoPort": true
     }
   ]
 }
