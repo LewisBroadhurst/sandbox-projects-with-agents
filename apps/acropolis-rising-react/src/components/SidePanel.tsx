@@ -16,18 +16,35 @@ interface SidePanelProps {
 
 function CityStats({ state }: { state: GameState }) {
 	const jobs = totalJobs(state);
-	const emp = jobs > 0 ? Math.min(100, Math.round((state.population / jobs) * 100)) : 100;
+	const workers = Math.floor(state.population);
+	// Staffing = share of job slots that are filled (capped at 100%). This is the
+	// same ratio that drives production and happiness in the simulation.
+	const staffing = jobs > 0 ? Math.min(100, Math.round((workers / jobs) * 100)) : 100;
+	// The city is only ever short on one side: either jobs sit empty for lack of
+	// workers, or surplus workers have no job to go to.
+	let gap: { text: string; color: string };
+	if (jobs === 0) gap = { text: 'No workplaces yet — build some to employ citizens.', color: '#8a5a2b' };
+	else if (workers < jobs) gap = { text: `${jobs - workers} jobs unfilled — grow your population.`, color: '#a13d21' };
+	else if (workers > jobs) gap = { text: `${workers - jobs} idle workers — build more workplaces.`, color: '#a13d21' };
+	else gap = { text: 'Fully staffed — every job is filled.', color: '#4a5d32' };
 	const happiness = Math.max(0, Math.min(100, state.happiness));
 	return (
 		<section id="cityStats">
 			<h3>City of {state.cityName}</h3>
 			<div className="stat-line">
 				<span>Population</span>
-				<span className="mono">{Math.floor(state.population)}</span>
+				<span className="mono">{workers}</span>
 			</div>
 			<div className="stat-line">
-				<span>Employment</span>
-				<span className="mono">{emp}%</span>
+				<span>Jobs available</span>
+				<span className="mono">{jobs}</span>
+			</div>
+			<div className="stat-line">
+				<span>Staffing</span>
+				<span className="mono">{staffing}%</span>
+			</div>
+			<div className="empty" style={{ marginTop: 2, marginBottom: 6, color: gap.color }}>
+				{gap.text}
 			</div>
 			<div className="stat-line">
 				<span>Happiness</span>
