@@ -70,7 +70,9 @@ export function totalJobs(s: GameState): number {
 }
 
 export function housingCapacity(s: GameState): number {
-	return countBuildings(s, 'house') * (BUILDINGS.house.capacity ?? 0);
+	// Culture venues turn nearby houses into double-capacity apartments, so total
+	// housing is derived from coverage rather than a flat per-house count.
+	return computeCoverage(s.map).totalCapacity;
 }
 
 export function canAfford(s: GameState, cost: Partial<Record<ResourceKey, number>>): boolean {

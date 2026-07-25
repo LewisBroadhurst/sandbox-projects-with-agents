@@ -1,4 +1,4 @@
-import { BUILDINGS, COLS, ROWS } from './data';
+import { BUILDINGS, COLS, CULTURE_CAP_MULT, CULTURE_RANGE, ROWS } from './data';
 import type { BuildingId, Point, Tile } from './types';
 
 const DIRS = [
@@ -79,6 +79,30 @@ export function isProducer(b: BuildingId): boolean {
 	return BUILDINGS[b].produces !== undefined;
 }
 
+/** Building ids that culturally uplift nearby homes (gym/theatre/college). */
+export function isCultureVenue(b: BuildingId): boolean {
+	return BUILDINGS[b].culture === true;
+}
+
+/**
+ * Houses within CULTURE_RANGE (Chebyshev) of any culture venue, which grow into
+ * apartments with CULTURE_CAP_MULT× the capacity. Purely structural — depends
+ * only on the map layout — so it can be derived alongside coverage per map.
+ */
+function findUpgradedHouses(map: Tile[]): Set<number> {
+	const venues: Point[] = [];
+	for (const t of map) if (t.building && isCultureVenue(t.building)) venues.push({ x: t.x, y: t.y });
+	const upgraded = new Set<number>();
+	if (venues.length === 0) return upgraded;
+	for (const t of map) {
+		if (t.building !== 'house') continue;
+		if (venues.some(v => Math.abs(v.x - t.x) <= CULTURE_RANGE && Math.abs(v.y - t.y) <= CULTURE_RANGE)) {
+			upgraded.add(idx(t.x, t.y));
+		}
+	}
+	return upgraded;
+}
+
 // ---------------------------------------------------------------------------
 // Food distribution: Agoras -> houses
 // ---------------------------------------------------------------------------
@@ -89,9 +113,11 @@ export function isProducer(b: BuildingId): boolean {
 export interface FoodCoverage {
 	/** Tile indices of houses reached by at least one Agora over the paths. */
 	servicedHouses: Set<number>;
-	/** Combined capacity of the serviced houses. */
+	/** Tile indices of houses a nearby culture venue has grown into apartments. */
+	upgradedHouses: Set<number>;
+	/** Combined capacity of the serviced houses (apartments count double). */
 	servicedCapacity: number;
-	/** Combined capacity of every house, serviced or not. */
+	/** Combined capacity of every house, serviced or not (apartments count double). */
 	totalCapacity: number;
 	houseCount: number;
 	servicedCount: number;
@@ -105,18 +131,22 @@ export interface FoodCoverage {
 export function computeCoverage(map: Tile[], range = 6): FoodCoverage {
 	const houseCap = BUILDINGS.house.capacity ?? 0;
 	const flood = floodPaths(map, b => b === 'agora', range);
+	const upgraded = findUpgradedHouses(map);
 	const serviced = new Set<number>();
 
 	let houseCount = 0;
 	let totalCapacity = 0;
+	let servicedCapacity = 0;
 	let agoraCount = 0;
 
 	for (const t of map) {
 		if (t.building === 'agora') agoraCount++;
 		else if (t.building === 'house') {
 			houseCount++;
-			totalCapacity += houseCap;
 			const here = idx(t.x, t.y);
+			// Apartments beside a culture venue hold twice as many citizens.
+			const cap = upgraded.has(here) ? houseCap * CULTURE_CAP_MULT : houseCap;
+			totalCapacity += cap;
 			for (const [dx, dy] of DIRS) {
 				const nx = t.x + dx,
 					ny = t.y + dy;
@@ -125,6 +155,7 @@ export function computeCoverage(map: Tile[], range = 6): FoodCoverage {
 				// beside an Agora (forecourt) or beside a reachable path tile
 				if (n.building === 'agora' || (n.building === 'road' && flood.dist[idx(nx, ny)] < Infinity)) {
 					serviced.add(here);
+					servicedCapacity += cap;
 					break;
 				}
 			}
@@ -133,7 +164,8 @@ export function computeCoverage(map: Tile[], range = 6): FoodCoverage {
 
 	return {
 		servicedHouses: serviced,
-		servicedCapacity: serviced.size * houseCap,
+		upgradedHouses: upgraded,
+		servicedCapacity,
 		totalCapacity,
 		houseCount,
 		servicedCount: serviced.size,

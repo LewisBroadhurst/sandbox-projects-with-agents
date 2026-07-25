@@ -75,6 +75,35 @@ describe('computeCoverage', () => {
 		const cov = computeCoverage(m, 6);
 		expect(cov.servicedHouses.has(1 * COLS + 3)).toBe(false);
 	});
+
+	it('upgrades a house within 3 tiles of a culture venue to double capacity', () => {
+		const m = grid();
+		put(m, 5, 5, 'house');
+		put(m, 8, 5, 'gym'); // 3 tiles east (Chebyshev 3, within range)
+		const cov = computeCoverage(m);
+		expect(cov.upgradedHouses.has(5 * COLS + 5)).toBe(true);
+		expect(cov.totalCapacity).toBe(2 * houseCap); // doubled
+	});
+
+	it('counts an upgraded, serviced house at double capacity', () => {
+		const m = grid();
+		put(m, 5, 5, 'agora');
+		put(m, 4, 5, 'house'); // on the Agora forecourt → serviced
+		put(m, 2, 3, 'theater'); // within 3 tiles of the house → upgraded
+		const cov = computeCoverage(m);
+		expect(cov.servicedHouses.has(5 * COLS + 4)).toBe(true);
+		expect(cov.upgradedHouses.has(5 * COLS + 4)).toBe(true);
+		expect(cov.servicedCapacity).toBe(2 * houseCap);
+	});
+
+	it('does not upgrade a house beyond 3 tiles of a culture venue', () => {
+		const m = grid();
+		put(m, 5, 5, 'house');
+		put(m, 9, 5, 'college'); // 4 tiles away → out of culture range
+		const cov = computeCoverage(m);
+		expect(cov.upgradedHouses.has(5 * COLS + 5)).toBe(false);
+		expect(cov.totalCapacity).toBe(houseCap); // unchanged
+	});
 });
 
 describe('computeStorageAccess', () => {

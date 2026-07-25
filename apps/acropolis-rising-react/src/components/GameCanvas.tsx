@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { BUILDINGS, COLS, ROWS, TERRAIN_COLOR, TILE } from '../game/data';
+import { BUILDINGS, COLS, HOUSE_UPGRADED_ICON, ROWS, TERRAIN_COLOR, TILE } from '../game/data';
 import type { CartRoute } from '../game/network';
 import { isProducer } from '../game/network';
 import type { BuildingId, Point, Tile } from '../game/types';
@@ -9,6 +9,8 @@ interface GameCanvasProps {
 	selectedTile: Point | null;
 	/** Tile indices of houses an Agora reaches with food (from computeCoverage). */
 	servicedHouses: Set<number>;
+	/** Tile indices of houses upgraded to apartments by a culture venue (from computeCoverage). */
+	upgradedHouses: Set<number>;
 	/** Tile indices of producers linked to a Storehouse (from computeStorageAccess). */
 	connectedProducers: Set<number>;
 	/** Delivery polylines to animate market carts along (from computeCartRoutes). */
@@ -92,6 +94,7 @@ function drawBuilding(
 	map: Tile[],
 	unservicedHouse: boolean,
 	disconnectedProducer: boolean,
+	upgradedHouse: boolean,
 ) {
 	const b = BUILDINGS[bId];
 	const px = x * TILE,
@@ -106,10 +109,12 @@ function drawBuilding(
 	roundRect(ctx, px + 3, py + 3, TILE - 6, TILE - 6, 6);
 	ctx.fill();
 	ctx.stroke();
+	// A house grown into an apartment block by a nearby culture venue swaps its icon.
+	const icon = bId === 'house' && upgradedHouse ? HOUSE_UPGRADED_ICON : b.icon;
 	ctx.font = '19px serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(b.icon, px + TILE / 2, py + TILE / 2 + 1);
+	ctx.fillText(icon, px + TILE / 2, py + TILE / 2 + 1);
 	// red: house no Agora feeds; orange: producer with no route to a Storehouse
 	if (unservicedHouse) warnDot(ctx, px, py, '#c1502e');
 	else if (disconnectedProducer) warnDot(ctx, px, py, '#d98a2b');
@@ -232,6 +237,7 @@ export function GameCanvas({
 	map,
 	selectedTile,
 	servicedHouses,
+	upgradedHouses,
 	connectedProducers,
 	cartRoutes,
 	population,
@@ -359,7 +365,8 @@ export function GameCanvas({
 				if (t.building) {
 					const unserviced = t.building === 'house' && !servicedHouses.has(i);
 					const disconnected = isProducer(t.building) && !connectedProducers.has(i);
-					drawBuilding(ctx, x, y, t.building, map, unserviced, disconnected);
+					const upgraded = t.building === 'house' && upgradedHouses.has(i);
+					drawBuilding(ctx, x, y, t.building, map, unserviced, disconnected, upgraded);
 				}
 			}
 		}
@@ -369,7 +376,7 @@ export function GameCanvas({
 			ctx.strokeRect(selectedTile.x * TILE + 1.5, selectedTile.y * TILE + 1.5, TILE - 3, TILE - 3);
 			ctx.lineWidth = 1;
 		}
-	}, [map, selectedTile, servicedHouses, connectedProducers]);
+	}, [map, selectedTile, servicedHouses, upgradedHouses, connectedProducers]);
 
 	// Animated layer: delivery carts along routes + citizens walking in and out.
 	useEffect(() => {
