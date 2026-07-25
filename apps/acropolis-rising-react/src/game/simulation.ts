@@ -241,7 +241,16 @@ export function tick(prev: GameState): ActionResult {
 	let target = 45;
 	target += anyBoost(boosts, 'happiness') ? 15 : 0;
 	target += Math.min(20, temples * 4);
-	target += employmentRatio > 0.85 ? 8 : employmentRatio < 0.4 ? -10 : 0;
+	// staffing: filled workplaces keep production humming — but this is only a
+	// meaningful signal once the city actually has jobs to fill (with no jobs at
+	// all, employmentRatio is forced to 1, which is not something to reward).
+	if (jobs > 0) target += employmentRatio > 0.85 ? 8 : employmentRatio < 0.4 ? -10 : 0;
+	// unemployment: citizens with no workplace to go to grow restless. Scales with
+	// the share of the population left idle and is capped so it nudges rather than
+	// nukes morale — a purely residential city stays livable but never thrives.
+	const idleWorkers = Math.max(0, s.population - jobs);
+	const unemploymentRate = s.population > 0 ? idleWorkers / s.population : 0;
+	target -= Math.min(12, unemploymentRate * 15);
 	target += starving ? -25 : 5;
 	// unserved houses are a visible grievance; well-fed cities are content.
 	if (coverage.houseCount > 0) target += coverageRatio >= 0.9 ? 6 : coverageRatio < 0.5 ? -8 : 0;

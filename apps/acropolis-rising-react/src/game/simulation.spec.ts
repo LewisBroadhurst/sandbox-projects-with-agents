@@ -153,6 +153,21 @@ describe('tick', () => {
 		expect(s.resources.wood).toBeGreaterThan(startWood); // so wood was collected
 	});
 
+	it('lets idle workers drag happiness below a fully-employed city', () => {
+		// Two identical cities (same seed, food, population) — one has a workplace
+		// for every citizen, the other has none. Only unemployment differs.
+		let idleCity = blankState(9);
+		let workingCity = blankState(9);
+		// 4 farms × 2 jobs = 8 jobs for the 8 starting citizens (no idle workers).
+		for (let i = 0; i < 4; i++) workingCity.map[i] = { ...workingCity.map[i], building: 'farm' };
+		for (let n = 0; n < 12; n++) {
+			idleCity = tick(idleCity).state;
+			workingCity = tick(workingCity).state;
+		}
+		expect(idleCity.happiness).toBeLessThan(workingCity.happiness);
+		expect(idleCity.happiness).toBeLessThan(55); // fell from the starting 55
+	});
+
 	it('is fully deterministic for a given seed', () => {
 		let a = newGameState(777);
 		let b = newGameState(777);
