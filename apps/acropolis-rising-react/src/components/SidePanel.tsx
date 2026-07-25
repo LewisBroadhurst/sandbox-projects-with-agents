@@ -137,6 +137,7 @@ function TileInfo({ state, storage, coverage, selectedBuild, selectedTile, onDem
 			? { text: '✔ Fed by an Agora — can grow.', color: '#4a5d32' }
 			: { text: '⚠ No Agora reaches this house — it cannot grow.', color: '#a13d21' };
 	}
+	const upgraded = t.building === 'house' && coverage.upgradedHouses.has(tileIndex);
 	return (
 		<div id="tileInfo">
 			<div className="row">
@@ -154,6 +155,14 @@ function TileInfo({ state, storage, coverage, selectedBuild, selectedTile, onDem
 					{status && (
 						<div className="row" style={{ marginTop: 6, color: status.color }}>
 							{status.text}
+						</div>
+					)}
+					{upgraded && (
+						<div className="row" style={{ marginTop: 6, color: '#4a5d32' }}>
+							<span role="img" aria-label="Apartments">
+								🏢
+							</span>{' '}
+							Apartments — a nearby culture venue doubled this home's capacity.
 						</div>
 					)}
 					<button className="small" style={{ marginTop: 8, width: '100%' }} onClick={() => onDemolish(selectedTile.x, selectedTile.y)}>

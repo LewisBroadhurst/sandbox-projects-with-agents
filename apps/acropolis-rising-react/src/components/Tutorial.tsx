@@ -34,7 +34,7 @@ const STEPS: Step[] = [
 	{
 		icon: '⚡',
 		title: '4 · Refine, worship, grow',
-		body: 'Granaries bake grain into bread and Forges smelt copper into bronze. Temples generate Favor, which you spend on divine Blessings. Complete Milestones for bonus resources. Keep happiness high and your population will climb.',
+		body: 'Granaries bake grain into bread and Forges smelt copper into bronze. Culture venues — Gymnasium, Theatre, Academy — grow houses within 3 tiles into double-capacity apartments. Temples generate Favor, which you spend on divine Blessings. Complete Milestones for bonus resources. Keep happiness high and your population will climb.',
 	},
 	{
 		icon: '🎮',

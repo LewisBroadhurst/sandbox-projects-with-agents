@@ -39,6 +39,7 @@ export function App() {
 					map={game.state.map}
 					selectedTile={game.selectedTile}
 					servicedHouses={coverage.servicedHouses}
+					upgradedHouses={coverage.upgradedHouses}
 					connectedProducers={storage.connected}
 					cartRoutes={cartRoutes}
 					population={game.state.population}

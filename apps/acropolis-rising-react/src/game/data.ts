@@ -10,6 +10,15 @@ export const AGORA_RANGE = 6;
 /** How many path tiles a producer may be from a Storehouse to deliver goods. */
 export const STOREHOUSE_RANGE = 8;
 
+/** Chebyshev tile radius within which a culture venue upgrades a house. */
+export const CULTURE_RANGE = 3;
+
+/** How much a nearby culture venue multiplies a house's capacity. */
+export const CULTURE_CAP_MULT = 2;
+
+/** Icon a house shows once a nearby culture venue grows it into an apartment block. */
+export const HOUSE_UPGRADED_ICON = '🏢';
+
 export const TERRAIN_COLOR: Record<Terrain, string> = {
 	grass: '#7f9457',
 	coast: '#8fae74',
@@ -37,7 +46,7 @@ export const BUILDINGS: Record<BuildingId, Building> = {
 		allow: ['grass', 'coast'],
 		jobs: 0,
 		capacity: 6,
-		desc: 'Homes citizens (capacity 6). Only grows when an Agora delivers food along a path.',
+		desc: 'Homes citizens (capacity 6, or 12 as apartments near a culture venue). Only grows when an Agora delivers food along a path.',
 	},
 	agora: {
 		name: 'Agora',
@@ -146,6 +155,37 @@ export const BUILDINGS: Record<BuildingId, Building> = {
 		desc: 'Bakes grain into bread.',
 	},
 
+	gym: {
+		name: 'Gymnasium',
+		cat: 'Culture',
+		icon: '🤸',
+		cost: { gold: 50, wood: 20, stone: 10 },
+		allow: ['grass', 'coast'],
+		jobs: 2,
+		culture: true,
+		desc: 'Trains body and mind. Houses within 3 tiles grow into apartments (double capacity).',
+	},
+	theater: {
+		name: 'Theatre',
+		cat: 'Culture',
+		icon: '🎭',
+		cost: { gold: 60, wood: 10, stone: 25 },
+		allow: ['grass', 'coast'],
+		jobs: 2,
+		culture: true,
+		desc: 'Stages the great dramas. Houses within 3 tiles grow into apartments (double capacity).',
+	},
+	college: {
+		name: 'Academy',
+		cat: 'Culture',
+		icon: '🎓',
+		cost: { gold: 80, stone: 30, bronze: 10 },
+		allow: ['grass', 'coast'],
+		jobs: 3,
+		culture: true,
+		desc: 'Schools the citizenry. Houses within 3 tiles grow into apartments (double capacity).',
+	},
+
 	templeZeus: {
 		name: 'Temple of Zeus',
 		cat: 'Temples',
@@ -202,7 +242,7 @@ export const BUILDINGS: Record<BuildingId, Building> = {
 	},
 };
 
-export const BUILD_CATEGORIES = ['Infrastructure', 'Gathering', 'Production', 'Temples'] as const;
+export const BUILD_CATEGORIES = ['Infrastructure', 'Gathering', 'Production', 'Culture', 'Temples'] as const;
 
 export const RES_META: Record<ResourceKey, { icon: string; label: string }> = {
 	gold: { icon: '🪙', label: 'Gold' },

@@ -2,7 +2,7 @@ export type Terrain = 'grass' | 'coast' | 'forest' | 'hill' | 'mountain' | 'wate
 
 export type ResourceKey = 'gold' | 'favor' | 'wood' | 'stone' | 'copper' | 'bronze' | 'fish' | 'grain' | 'bread';
 
-export type BuildingCategory = 'Infrastructure' | 'Gathering' | 'Production' | 'Temples';
+export type BuildingCategory = 'Infrastructure' | 'Gathering' | 'Production' | 'Culture' | 'Temples';
 
 export type BuildingId =
 	| 'road'
@@ -16,6 +16,9 @@ export type BuildingId =
 	| 'farm'
 	| 'forge'
 	| 'granary'
+	| 'gym'
+	| 'theater'
+	| 'college'
 	| 'templeZeus'
 	| 'templePoseidon'
 	| 'templeDemeter'
@@ -43,6 +46,8 @@ export interface Building {
 	ratio?: number;
 	god?: string;
 	boosts?: BoostTag[];
+	/** A culture venue (gym/theatre/college) upgrades nearby houses into apartments. */
+	culture?: boolean;
 	desc: string;
 }
 
